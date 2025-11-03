@@ -1,18 +1,49 @@
-import Data.Collection as ADC
 import time
+from Enabled_Inputs import ADC1_CHANNELS, ADC2_CHANNELS
+from ADC import ADS124S08
 
 
 def main():
+    GPIOCHIP = "/dev/gpiochip0"  # Pi Zero/3/4; adjust if needed
 
-    print("Initializing DAQ...")
-    ADC.init_DAQ()  # The collection file needs to include an object that can be made twice for the two different ADCs.
-    # We should ultimately be able to feed in different pins as parameters for configuring each of the ADC objects.
-    # I believe that currently the .read_voltage() probably gets only 1 analog input, we need to read 5+ analog inputs from a single ADC ultamitely.
+    adc1 = ADS124S08(spi_bus=0, spi_dev=0, gpiochip=GPIOCHIP, reset_pin=17, drdy_pin=25, start_pin=27, max_speed_hz=1_000_000)
+    adc2 = ADS124S08(spi_bus=0, spi_dev=1, gpiochip=GPIOCHIP, reset_pin=22, drdy_pin=24, start_pin=26, max_speed_hz=1_000_000)
+
     try:
+        # Reset and basic config
+        adc1.hardware_reset()
+        adc2.hardware_reset()
+        adc1.configure_basic(use_internal_ref=True, gain=1)
+        adc2.configure_basic(use_internal_ref=True, gain=1)
+
+        # Start conversions (continuous)
+        adc1.start()
+        adc2.start()
+
+        VREF = 2.5
+        GAIN = 1
+
         while True:
-            print("V: " + str(ADC.read_voltage) + "  Time: " + time.time())
+            print("---- Scan ----")
+            for label, (ch_idx, enabled) in ADC1_CHANNELS.items():
+                if not enabled:
+                    continue
+                code1, volts1 = adc1.read_voltage_single(ch_idx, vref=VREF, gain=GAIN, settle_discard=True)
+                print(f"ADC1 - {label}: {volts1:+.6f} V  (code={code1:+d})")
+            for label, (ch_idx, enabled) in ADC2_CHANNELS.items():
+                if not enabled:
+                    continue
+                code2, volts2 = adc2.read_voltage_single(ch_idx, vref=VREF, gain=GAIN, settle_discard=True)
+                print(f"ADC2 - {label}: {volts2:+.6f} V  (code={code2:+d})")
+            time.sleep(0.2)
+
+    except KeyboardInterrupt:
+        pass
     finally:
-        ADC.shutdown_DAQ()
+        adc1.stop()
+        adc2.stop()
+        adc1.close()
+        adc2.close()
 
 
 if __name__ == "__main__":
