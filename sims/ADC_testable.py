@@ -7,13 +7,15 @@ try:
     import spidev
     import gpiod
     from gpiod.line import Direction, Value
+
     print("--- ADC: Running on REAL hardware ---")
 except (ImportError, ModuleNotFoundError):
     print("--- ADC: (Mock Mode) Hardware libraries not found. Using Mocks. ---")
-    import mock_spidev as spidev
-    import mock_gpiod as gpiod
+    import sims.mock_spidev as spidev
+    import sims.mock_gpiod as gpiod
+
     # We must also mock the gpiod enums
-    from mock_gpiod import Direction, Value, LineSettings
+    from sims.mock_gpiod import Direction, Value, LineSettings
 # --------------------------
 
 
@@ -41,7 +43,7 @@ class ADS124S08:
 
         # --- SPI setup ---
         devpath = f"/dev/spidev{spi_bus}.{spi_dev}"
-        
+
         # ------------------------------------------------------------------
         # --- !! BUG FIX !! ---
         # The original check was:
@@ -81,7 +83,7 @@ class ADS124S08:
                 out_cfg[start_pin] = LineSettings(direction=Direction.OUTPUT, output_value=Value.INACTIVE)
             else:
                 out_cfg[start_pin] = gpiod.LineSettings(direction=Direction.OUTPUT, output_value=Value.INACTIVE)  # START low
-        
+
         if out_cfg:
             self._req_out = self.chip.request_lines(config=out_cfg, consumer="ads124_out")
 
@@ -92,7 +94,7 @@ class ADS124S08:
                 drv_line_settings = LineSettings(direction=Direction.INPUT)
             else:
                 drv_line_settings = gpiod.LineSettings(direction=Direction.INPUT)
-                
+
             self._req_in = self.chip.request_lines(config={drdy_pin: drv_line_settings}, consumer="ads124_in")
 
         time.sleep(0.005)
@@ -142,7 +144,7 @@ class ADS124S08:
             if self._req_in.get_value(self.drdy_pin) == Value.INACTIVE:
                 return True
             # Don't spin-lock, sleep a tiny bit
-            time.sleep(0.0001) 
+            time.sleep(0.0001)
         print(f"Warning: DRDY timeout on pin {self.drdy_pin}")
         return False
 
@@ -206,15 +208,15 @@ class ADS124S08:
         # Wait for a conversion with the new MUX; discard the first sample to settle
         if not self.wait_drdy(0.5):
             raise TimeoutError(f"DRDY timeout on pin {self.drdy_pin} after MUX change")
-        
-        first_code = self.read_raw_sample() # Read and discard
-        
+
+        first_code = self.read_raw_sample()  # Read and discard
+
         code = first_code
         if settle_discard:
             if not self.wait_drdy(0.5):
                 raise TimeoutError(f"DRDY timeout on pin {self.drdy_pin} (settle discard)")
-            code = self.read_raw_sample() # This is the one we keep
-        
+            code = self.read_raw_sample()  # This is the one we keep
+
         volts = self.code_to_volts(code, vref=vref, gain=gain)
         return code, volts
 
@@ -223,10 +225,9 @@ class ADS124S08:
             self.spi.close()
         except Exception:
             pass
-        
+
         # Also release GPIO lines
         if self._req_out:
             self._req_out.release()
         if self._req_in:
             self._req_in.release()
-

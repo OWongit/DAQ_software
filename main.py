@@ -24,17 +24,25 @@ def main():
         GAIN = 1
 
         while True:
-            print("---- Scan ----")
+            print("------------- ADC 1 -------------")
             for label, (ch_idx, enabled) in ADC1_CHANNELS.items():
                 if not enabled:
                     continue
-                code1, volts1 = adc1.read_voltage_single(ch_idx, vref=VREF, gain=GAIN, settle_discard=True)
-                print(f"ADC1 - {label}: {volts1:+.6f} V  (code={code1:+d})")
+                try:
+                    code1, volts1 = adc1.read_voltage_single(ch_idx, vref=VREF, gain=GAIN, settle_discard=True)
+                    print(f"{label}: {volts1:+.6f} V  (code={code1:+d})")
+                except Exception as e:
+                    print(f"Error reading ADC1 {label}: {e}")
+
+            print("------------- ADC 2 -------------")
             for label, (ch_idx, enabled) in ADC2_CHANNELS.items():
                 if not enabled:
                     continue
-                code2, volts2 = adc2.read_voltage_single(ch_idx, vref=VREF, gain=GAIN, settle_discard=True)
-                print(f"ADC2 - {label}: {volts2:+.6f} V  (code={code2:+d})")
+                try:
+                    code2, volts2 = adc2.read_voltage_single(ch_idx, vref=VREF, gain=GAIN, settle_discard=True)
+                    print(f"{label}: {volts2:+.6f} V  (code={code2:+d})")
+                except Exception as e:
+                    print(f"Error reading ADC2 {label}: {e}")
             time.sleep(0.2)
 
     except KeyboardInterrupt:
