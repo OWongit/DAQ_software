@@ -38,30 +38,40 @@ def main():
         GAIN = 1
 
         run_count = 0
+        max_run_count = 50
         # Limit to 3 loops for testing
-        while run_count < 3:
-            print(f"============= Scan {run_count + 1}/3 =============")
-            print("------------- ADC 1 -------------")
+        while run_count < max_run_count:
+            voltages1 = []
+            voltages2 = []
+            now = time.strftime("%H:%M:%S", time.localtime())
+
             for label, (ch_idx, enabled) in ADC1_CHANNELS.items():
                 if not enabled:
                     continue
                 try:
-                    code1, volts1 = adc1.read_voltage_single(ch_idx, vref=VREF, gain=GAIN, settle_discard=True)
-                    print(f"{label}: {volts1:+.6f} V  (code={code1:+d})")
+                    _, volts1 = adc1.read_voltage_single(ch_idx, vref=VREF, gain=GAIN, settle_discard=True)
+                    voltages1.append(volts1)
                 except Exception as e:
                     print(f"Error reading ADC1 {label}: {e}")
 
-            print("------------- ADC 2 -------------")
             for label, (ch_idx, enabled) in ADC2_CHANNELS.items():
                 if not enabled:
                     continue
                 try:
-                    code2, volts2 = adc2.read_voltage_single(ch_idx, vref=VREF, gain=GAIN, settle_discard=True)
-                    print(f"{label}: {volts2:+.6f} V  (code={code2:+d})")
+                    _, volts2 = adc2.read_voltage_single(ch_idx, vref=VREF, gain=GAIN, settle_discard=True)
+                    voltages2.append(volts2)
                 except Exception as e:
                     print(f"Error reading ADC2 {label}: {e}")
 
-            time.sleep(0.2)
+            # format: sign + 1 digit + '.' + 3 decimals  -> total 6 chars, e.g. "+1.234", "-0.567"
+            fmt = "{:+.3f}"
+
+            adc1_str = "[" + ", ".join(fmt.format(v) for v in voltages1) + "]"
+            adc2_str = "[" + ", ".join(fmt.format(v) for v in voltages2) + "]"
+
+            print(f"{now} - ADC1: {adc1_str}  ADC2: {adc2_str}")
+
+            time.sleep(0.1)
             run_count += 1
 
     except KeyboardInterrupt:
