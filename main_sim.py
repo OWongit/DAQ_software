@@ -28,7 +28,7 @@ def main():
     logger = DataLogger(base_dir=save_dir)
     
     # --- Dynamically create headers based on Enabled_Inputs.py ---
-    headers = ["timestamp_unix"] # Use a sortable, high-precision timestamp
+    headers = ["timestamp_unix"]
     
     # Get all enabled channel labels for ADC1
     adc1_headers = [f"ADC1_{label}" for label, (_, enabled) in ADC1_CHANNELS.items() if enabled]
@@ -59,7 +59,7 @@ def main():
         max_run_count = 50
         # Limit to 3 loops for testing
         while run_count < max_run_count:
-            csv_timestamp = time.time() # High-precision timestamp for CSV
+            csv_timestamp = time.time()
             print_timestamp = time.strftime("%H:%M:%S", time.localtime(csv_timestamp))
 
             voltages1 = []
