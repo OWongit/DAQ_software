@@ -54,3 +54,11 @@ class DataLogger:
                 self.file_handle.close()
         except Exception as e:
             print(f"DataLogger: Error closing file: {e}")
+
+    def get_filename(self):
+        """
+        Helper method to get the full path to the log file.
+        We use os.path.basename to return just the file's name,
+        as the server already knows the directory.
+        """
+        return os.path.basename(self.filename)
