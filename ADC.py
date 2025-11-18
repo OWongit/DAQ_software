@@ -1,9 +1,51 @@
 #!/usr/bin/env python3
 import os
 import time
-import spidev
-import gpiod
-from gpiod.line import Direction, Value
+
+# set "USE_MOCK_HW" to 1 if no raspi present
+USE_MOCK_HW = os.getenv("USE_MOCK_HW", "0") == "1"
+
+spidev = None
+gpiod = None
+Direction = None
+Value = None
+
+# Try real hardware first
+if not USE_MOCK_HW:
+    try:
+        import spidev as _real_spidev
+        import gpiod as _real_gpiod
+        from gpiod.line import Direction as _Direction, Value as _Value
+
+        spidev = _real_spidev
+        gpiod = _real_gpiod
+        Direction = _Direction
+        Value = _Value
+    except ModuleNotFoundError:
+        USE_MOCK_HW = True  # fall through to mocks
+
+if USE_MOCK_HW:
+    # Use your mock libraries in the sims package
+    from sims import mock_spidev as spidev
+    from sims import mock_gpiod as gpiod
+
+    try:
+        from sims.mock_gpiod import Direction as _Direction, Value as _Value
+
+        Direction = _Direction
+        Value = _Value
+    except ImportError:
+
+        class Direction:
+            INPUT = "input"
+            OUTPUT = "output"
+
+        class Value:
+            INACTIVE = 0  # DRDY inactive (high)
+            ACTIVE = 1  # DRDY active (low) / output high
+
+        gpiod.Direction = Direction
+        gpiod.Value = Value
 
 
 class ADS124S08:
@@ -14,6 +56,8 @@ class ADS124S08:
     REG_PGA = 0x03
     REG_DATARATE = 0x04
     REG_REF = 0x05
+    REG_IDACMAG = 0x06  # Excitation Current Register 1 (IDACMAG)
+    REG_IDACMUX = 0x07  # Excitation Current Register 2 (IDACMUX)
 
     # --- Commands (subset) ---
     CMD_RESET = 0x06
@@ -26,14 +70,36 @@ class ADS124S08:
 
     AINCOM_CODE = 0x0C  # AINCOM value used in INPMUX (lower nibble)
 
+    # --- RTD / IDAC-related constants ---
+    RREF_OHMS = 5600.0
+
+    # In microamps from 10 µA - 2000 µA.
+    _IDAC_CURRENT_MAP_UA = {
+        10: 0x01,
+        50: 0x02,
+        100: 0x03,
+        250: 0x04,
+        500: 0x05,
+        750: 0x06,
+        1000: 0x07,
+        1500: 0x08,
+        2000: 0x09,
+    }
+
     def __init__(self, spi_bus, spi_dev, gpiochip="/dev/gpiochip0", reset_pin=None, drdy_pin=None, start_pin=None, max_speed_hz=1_000_000):
 
         # --- SPI setup ---
         devpath = f"/dev/spidev{spi_bus}.{spi_dev}"
-        if not os.path.exists(devpath):
-            raise RuntimeError(f"{devpath} not found. Enable SPI and/or correct bus/dev.")
+        if not USE_MOCK_HW:
+            # On real hardware, make sure the SPI device node exists
+            if not os.path.exists(devpath):
+                raise RuntimeError(f"{devpath} not found. Enable SPI and/or correct bus/dev.")
+
         self.spi = spidev.SpiDev()
         self.spi.open(spi_bus, spi_dev)  # (0,0) or (0,1)
+        self.spi.mode = 0b01  # ADS124S08 requires mode 1
+        self.spi.max_speed_hz = max_speed_hz
+        self.spi.bits_per_word = 8
         self.spi.mode = 0b01  # ADS124S08 requires mode 1
         self.spi.max_speed_hz = max_speed_hz
         self.spi.bits_per_word = 8
@@ -61,6 +127,8 @@ class ADS124S08:
             self._req_in = self.chip.request_lines(config={drdy_pin: gpiod.LineSettings(direction=Direction.INPUT)}, consumer="ads124_in")
 
         time.sleep(0.005)
+        self._ref_reg_backup = None  # may not need, maybe delete later
+        self._idac_enabled = False  # may not need, maybe delete later
 
     # ----------------- Low-level helpers -----------------
     def _send_cmd(self, cmd):
@@ -115,7 +183,7 @@ class ADS124S08:
         return code
 
     # ----------------- Config helpers -----------------
-    def configure_basic(self, use_internal_ref=True, gain=1, data_rate=None):
+    def configure_basic(self, use_internal_ref=False, gain=1, data_rate=None):
         """
         Basic sane setup:
         - Optionally enable/select internal 2.5V reference.
@@ -144,6 +212,147 @@ class ADS124S08:
         if data_rate is not None:
             self.wreg(self.REG_DATARATE, [data_rate])
 
+    # ----------------- RTD / IDAC helpers -----------------
+    def _idac_current_code(self, current_ua: int) -> int:
+        """
+        Map desired IDAC current (µA) to the IMAG code used in IDACMAG.
+
+        Valid currents (µA): 10, 50, 100, 250, 500, 750, 1000, 1500, 2000.
+        """
+        # Accept floats like 500.0
+        current_ua = int(round(current_ua))
+        try:
+            return self._IDAC_CURRENT_MAP_UA[current_ua]
+        except KeyError:
+            allowed = ", ".join(str(u) for u in sorted(self._IDAC_CURRENT_MAP_UA.keys()))
+            raise ValueError(f"IDAC current must be one of {allowed} µA (got {current_ua} µA)") from None
+
+    def _set_ref_for_rtd(self, use_ref1: bool = True, internal_always_on: bool = False) -> None:
+        """
+        Select REF1 (AIN6/7) as the ADC reference and turn on the internal
+        2.5 V reference (required for IDAC operation).
+
+        - use_ref1=True: REFSEL = REF1 (AIN6/7) used as VREF.
+        - internal_always_on: if True, keep internal ref on even in power-down.
+        """
+        # Read current REF register and back it up once
+        cur = self.rreg(self.REG_REF, 1)[0]
+        if self._ref_reg_backup is None:
+            self._ref_reg_backup = cur
+
+        # REFSEL bits [3:2]: 00=REF0, 01=REF1, 10=internal. :contentReference[oaicite:3]{index=3}
+        if use_ref1:
+            cur = (cur & ~0x0C) | 0x04  # select REF1 (AIN6/7)
+        else:
+            cur = (cur & ~0x0C) | 0x00  # select REF0 (default ext ref pins)
+
+        # REFCON bits [1:0]: 00=internal ref off, 01=on (off in power-down),
+        # 02=on always. IDACs require the internal ref to be on. :contentReference[oaicite:4]{index=4}
+        cur = (cur & ~0x03) | (0x02 if internal_always_on else 0x01)
+
+        self.wreg(self.REG_REF, [cur])
+
+    def configure_idac_outputs(self, current_ua: int, idac1_ain: int, idac2_ain: int) -> None:
+        """
+        Route IDAC1 and IDAC2 to the specified AIN pins and set the current.
+
+        Parameters
+        ----------
+        current_ua : int or float
+            Desired IDAC magnitude in microamps. Must be one of:
+            10, 50, 100, 250, 500, 750, 1000, 1500, 2000.
+        idac1_ain : int
+            AIN number (0..11) to drive with IDAC1.
+        idac2_ain : int
+            AIN number (0..11) to drive with IDAC2.
+        """
+        # Map current → IMAG bits
+        mag_code = self._idac_current_code(current_ua)
+
+        def _ain_to_code(ain: int) -> int:
+            if not (0 <= ain <= 11):
+                raise ValueError("AIN index must be in 0..11")
+            # In IDACMUX, AIN0..AIN11 map to codes 0x0..0xB for each nibble. :contentReference[oaicite:5]{index=5}
+            return ain & 0x0F
+
+        idac1_code = _ain_to_code(idac1_ain)  # low nibble (IDAC1)
+        idac2_code = _ain_to_code(idac2_ain)  # high nibble (IDAC2)
+        mux_val = (idac2_code << 4) | idac1_code
+
+        # Program IDAC magnitude and routing
+        self.wreg(self.REG_IDACMAG, [mag_code])
+        self.wreg(self.REG_IDACMUX, [mux_val])
+        self._idac_enabled = True
+
+    def enable_rtd_mode(
+        self,
+        current_ua: int = 500,
+        idac1_ain: int = 5,
+        idac2_ain: int = 3,
+        use_ref1: bool = True,
+        internal_ref_always_on: bool = False,
+    ) -> None:
+        """
+        High-level helper to enable RTD excitation and reference using:
+
+            - AIN6 / AIN7 as the reference (Rref ≈ 5.6 kΩ)
+            - IDAC1 routed to AIN5
+            - IDAC2 routed to AIN3
+
+        Call this when you want to use the RTD. By default the chip starts up
+        with IDACs off, so RTD is *not* in use until you call this.
+        """
+        # 1) Select REF1 (AIN6/7) and turn on internal ref for IDACs
+        self._set_ref_for_rtd(use_ref1=use_ref1, internal_always_on=internal_ref_always_on)
+
+        # 2) Route currents out of AIN5 and AIN3
+        self.configure_idac_outputs(
+            current_ua=current_ua,
+            idac1_ain=idac1_ain,
+            idac2_ain=idac2_ain,
+        )
+
+    def disable_rtd_mode(self) -> None:
+        """
+        Turn off IDAC outputs and restore the REF register back to whatever
+        it was before the first call to enable_rtd_mode().
+        """
+        # Turn IDACs off:
+        #   IDACMAG = 0 → IMAG = off
+        #   IDACMUX = 0xFF → IDAC1_OFF (0x0F) | IDAC2_OFF (0xF0) :contentReference[oaicite:6]{index=6}
+        self.wreg(self.REG_IDACMAG, [0x00])
+        self.wreg(self.REG_IDACMUX, [0xFF])
+        self._idac_enabled = False
+
+        # Restore original REF register if we changed it
+        if self._ref_reg_backup is not None:
+            self.wreg(self.REG_REF, [self._ref_reg_backup])
+            self._ref_reg_backup = None
+
+    @staticmethod
+    def code_to_rtd_resistance(code: int, r_ref_ohms: float | None = None, gain: int = 1) -> float:
+        """
+        Convert a raw ADC code (from an RTD measurement) to RTD resistance.
+
+        Assumes a ratiometric setup where:
+            - The same IDAC current flows through the RTD and the reference
+              resistor RREF between AIN6/7, selected as REF1.
+            - The ADC is configured with REFSEL = REF1.
+
+        For this configuration,
+            code / FS ≈ (R_RTD * gain) / RREF
+
+        so:
+            R_RTD = (code / FS) * (RREF / gain)
+
+        FS = 2^23 - 1 for the ADS124S08.
+        """
+        if r_ref_ohms is None:
+            r_ref_ohms = ADS124S08.RREF_OHMS
+
+        FS = (1 << 23) - 1  # 0x7FFFFF
+        return (code / FS) * (r_ref_ohms / gain)
+
     def set_inpmux_single(self, ainp):
         """AINp = ainp (0..11), AINn = AINCOM."""
         if not (0 <= ainp <= 11):
@@ -152,13 +361,13 @@ class ADS124S08:
         self.wreg(self.REG_INPMUX, [val])
 
     @staticmethod
-    def code_to_volts(code, vref=2.5, gain=1):
+    def code_to_volts(code, vref=5, gain=1):
         """Convert 24-bit code to volts for bipolar transfer: ±Vref/gain."""
         FS = (1 << 23) - 1  # 0x7FFFFF
         return (code / FS) * (vref / gain)
 
     # ----------------- Convenience reads -----------------
-    def read_voltage_single(self, ainp, vref=2.5, gain=1, settle_discard=True):
+    def read_voltage_single(self, ainp, vref=5, gain=1, settle_discard=True):
         """
         Set MUX to AINp vs AINCOM, wait for DRDY, optionally discard first sample
         after mux change, then read and return (code, volts).

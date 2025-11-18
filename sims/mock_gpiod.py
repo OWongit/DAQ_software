@@ -1,70 +1,100 @@
 """
-Mock (fake) gpiod library for testing on a local machine.
+mock_gpiod.py
+
+Lightweight mock of the `gpiod` library for testing without real GPIO hardware.
+
+Implements a very small subset of the python-gpiod API that is commonly used
+on Raspberry Pi:
+    - Chip(name)
+    - Chip.get_line(offset) -> Line
+    - Line.request(...)
+    - Line.set_value()
+    - Line.get_value()
+    - Line.release()
+
+You can use it as a drop-in replacement by doing:
+
+    import mock_gpiod as gpiod
+
+or by naming this file `gpiod.py` and putting it before the real library
+on PYTHONPATH when running tests.
 """
 
-# --- Mock Enums ---
+from dataclasses import dataclass
+from typing import Dict, Optional
+
+
 class Direction:
-    INPUT = 1
-    OUTPUT = 2
+    INPUT = "input"
+    OUTPUT = "output"
+
 
 class Value:
-    INACTIVE = 0
-    ACTIVE = 1
+    INACTIVE = 0  # line is inactive (high for active-low DRDY)
+    ACTIVE = 1  # line is active   (low for active-low DRDY)
 
-# --- Mock Settings Class ---
+
+@dataclass
 class LineSettings:
-    def __init__(self, direction=Direction.INPUT, output_value=Value.INACTIVE, **kwargs):
-        self.direction = direction
-        self.output_value = output_value
-        print(f"MockGpiod: LineSettings created (dir={'OUT' if direction==Direction.OUTPUT else 'IN'}, val={'ACTIVE' if output_value==Value.ACTIVE else 'INACTIVE'})")
+    """
+    Very small stand-in for gpiod.LineSettings.
 
-# --- Mock Request Object ---
-class _MockRequest:
-    """This is the object returned by chip.request_lines()"""
-    def __init__(self, config, consumer):
-        self._config = config
-        self._consumer = consumer
-        print(f"MockGpiod: Lines requested by '{consumer}'")
-    
-    def set_value(self, pin, value):
-        val_str = "ACTIVE" if value == Value.ACTIVE else "INACTIVE"
-        # This is very spammy, so it's commented out
-        # print(f"MockGpiod: Setting pin {pin} to {val_str}")
-        pass
+    Only the fields that ADS124S08 uses are modeled:
+        - direction
+        - output_value  (for outputs)
+    """
 
-    def get_value(self, pin):
-        # This is the critical one for DRDY (Data Ready)
-        # We must return INACTIVE (LOW) to signal that data is ready
-        # so the wait_drdy() loop can exit.
-        # print(f"MockGpiod: Getting value for pin {pin}, returning INACTIVE (data ready)")
-        return Value.INACTIVE # Return 0 (INACTIVE / LOW)
+    direction: str = Direction.INPUT
+    output_value: int = Value.INACTIVE
 
-    # ------------------------------------------------------------------
-    # --- !! BUG FIX !! ---
-    # Added the missing release() method that ADC_testable.py calls.
-    # ------------------------------------------------------------------
+
+class LinesRequest:
+    """
+    Represents a set of requested GPIO lines.
+
+    Implements:
+        set_value(offset, Value)
+        get_value(offset) -> Value
+        release()
+    """
+
+    def __init__(self, config: Dict[int, LineSettings], consumer: Optional[str] = None):
+        self.consumer = consumer
+        # Store current values for each line
+        self._values: Dict[int, int] = {}
+        for offset, settings in config.items():
+            if settings.direction == Direction.OUTPUT:
+                self._values[offset] = settings.output_value
+            else:
+                # For inputs (like DRDY), default to INACTIVE so wait_drdy() succeeds
+                self._values[offset] = Value.INACTIVE
+
+    def set_value(self, offset: int, value: int):
+        self._values[offset] = value
+
+    def get_value(self, offset: int) -> int:
+        # For inputs we just return whatever is stored (default INACTIVE)
+        return self._values.get(offset, Value.INACTIVE)
+
     def release(self):
-        """Mock function to simulate releasing GPIO lines."""
-        print(f"MockGpiod: Releasing lines for '{self._consumer}'")
-        pass
+        self._values.clear()
 
-# --- Mock Chip Class ---
+
 class Chip:
-    def __init__(self, gpiochip):
-        if "dev" not in gpiochip:
-             print(f"MockGpiod: Warning! gpiochip should be a path like /dev/gpiochip0, but got {gpiochip}")
-        print(f"MockGpiod: Opening Chip {gpiochip}")
-    
-    def request_lines(self, config, consumer):
-        """Returns the mock request object that has .set_value() and .get_value()"""
-        return _MockRequest(config, consumer)
+    """
+    Minimal mock of gpiod.Chip for the ADS124S08 driver.
 
-# --- Mock 'line' submodule ---
-class _MockLineModule:
-    """Mocks the 'from gpiod.line import ...' structure"""
-    def __init__(self):
-        self.Direction = Direction
-        self.Value = Value
+    Used as:
+        chip = gpiod.Chip("/dev/gpiochip0")
+        req_out = chip.request_lines(config={...}, consumer="ads124_out")
+    """
 
-line = _MockLineModule()
+    def __init__(self, name: str = "/dev/gpiochip0"):
+        self.name = name
 
+    def request_lines(self, config: Dict[int, LineSettings], consumer: Optional[str] = None) -> LinesRequest:
+        return LinesRequest(config=config, consumer=consumer)
+
+    def close(self):
+        # Nothing to do in the mock
+        pass
