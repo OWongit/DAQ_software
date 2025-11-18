@@ -4,208 +4,405 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DAQ Control Panel</title>
-    <!-- We'll use Tailwind CSS for easy styling -->
+    <!--
+    This new layout scraps the individual small charts for a single,
+    large, detailed chart.
+    - A new sidebar (`#channel-selector`) will be populated with all available channels.
+    - Clicking a channel button will add or remove its data from the main chart.
+    -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        // Customizing Tailwind theme slightly
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'idle': '#6b7280', // Gray
-                        'logging': '#22c55e', // Green
-                    }
-                }
-            }
-        }
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
-        /* A little extra style for disabled buttons */
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .widget {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+        }
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-green { background-color: #10b981; color: white; }
+        .btn-green:hover { background-color: #059669; }
+        .btn-red { background-color: #ef4444; color: white; }
+        .btn-red:hover { background-color: #dc2626; }
+        .btn-blue { background-color: #3b82f6; color: white; }
+        .btn-blue:hover { background-color: #2563eb; }
+        .btn-gray { background-color: #e5e7eb; color: #374151; }
+        .btn-gray:hover { background-color: #d1d5db; }
+
+        /* Channel selector styles */
+        #channel-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .channel-btn {
+            background-color: #f3f4f6;
+            color: #374151;
+            text-align: left;
+            padding: 0.5rem 0.75rem;
+        }
+        .channel-btn.active {
+            background-color: #3b82f6;
+            color: white;
+            font-weight: 600;
+        }
+        .channel-btn:hover {
+            background-color: #e5e7eb;
+        }
+        .channel-btn.active:hover {
+            background-color: #2563eb;
+        }
+        
+        /* New layout for main content */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 3fr; /* 1 part sidebar, 3 parts chart */
+            gap: 1.5rem;
+        }
+        
+        #chart-wrapper {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            min-height: 400px;
+            position: relative;
         }
     </style>
 </head>
-<body class="bg-gray-100 font-sans flex items-center justify-center min-h-screen">
+<body class="p-6 md:p-10">
+    <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">DAQ Control Panel</h1>
 
-    <div class="w-full max-w-md bg-white rounded-lg shadow-xl p-6 md:p-8">
-        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">DAQ Control Panel</h1>
+    <!-- Top Info Row -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Status Widget -->
+        <div class="widget">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">Status</h2>
+            <div class="flex items-center space-x-3 mb-4">
+                <div id="status-indicator" class="w-4 h-4 rounded-full bg-yellow-400"></div>
+                <span id="status-text" class="text-gray-600 font-medium">Connecting...</span>
+            </div>
+            <h3 class="text-md font-semibold text-gray-600 mb-2">Last File</h3>
+            <span id="last-file-text" class="text-gray-500 italic">No file logged yet.</span>
+        </div>
 
-        <!-- Status Section -->
-        <div class="mb-6">
-            <h2 class="text-lg font-semibold text-gray-700 mb-2">Status</h2>
-            <div class="flex items-center p-4 bg-gray-50 rounded-lg">
-                <div id="status-indicator" class="w-4 h-4 rounded-full bg-idle mr-3 transition-colors"></div>
-                <span id="status-message" class="text-lg text-gray-800 font-medium">Connecting...</span>
+        <!-- Controls Widget -->
+        <div class="widget">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">Controls</h2>
+            <div class="flex space-x-4 mb-4">
+                <button id="start-btn" class="btn btn-green w-full" onclick="startLogging()">Start Logging</button>
+                <button id="stop-btn" class="btn btn-red w-full" onclick="stopLogging()" disabled>Stop Logging</button>
+            </div>
+            <button id="download-btn" class="btn btn-blue w-full" onclick="downloadLastFile()" disabled>Download Last File</button>
+        </div>
+
+        <!-- Info Widget -->
+        <div class="widget">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">Info</h2>
+            <div class="flex justify-between">
+                <span class="text-gray-600">Polling Status:</span>
+                <span id="polling-status" class="font-bold text-gray-500">Idle</span>
+            </div>
+            <div class="flex justify-between mt-2">
+                <span class="text-gray-600">Total Channels:</span>
+                <span id="channel-count" class="font-bold text-gray-800">0</span>
             </div>
         </div>
-
-        <!-- File Section -->
-        <div class="mb-6">
-            <h2 class="text-lg font-semibold text-gray-700 mb-2">Current File</h2>
-            <div class="p-4 bg-gray-50 rounded-lg">
-                <span id="file-name" class="text-gray-600 italic break-all">No file logged yet</span>
-            </div>
-        </div>
-
-        <!-- Controls Section -->
-        <div class="grid grid-cols-2 gap-4 mb-4">
-            <button id="start-button" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-green-700 transition-all">
-                Start Logging
-            </button>
-            <button id="stop-button" class="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-red-700 transition-all">
-                Stop Logging
-            </button>
-        </div>
-
-        <!-- Download Button (acts as a link) -->
-        <a id="download-button" href="#" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-blue-700 transition-all text-center block">
-            Download Last File
-        </a>
-
     </div>
 
+    <!-- Main Content: Channel Selector + Chart -->
+    <div class="main-content">
+        <!-- Channel Selector Sidebar -->
+        <div class="widget">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">Channels</h2>
+            <div id="channel-selector">
+                <p class="text-gray-500 italic">Loading channels...</p>
+            </div>
+        </div>
+
+        <!-- Main Chart Wrapper -->
+        <div id="chart-wrapper">
+            <canvas id="mainChart"></canvas>
+        </div>
+    </div>
+
+
     <script>
-        // --- Get references to all our HTML elements ---
-        const statusIndicator = document.getElementById('status-indicator');
-        const statusMessage = document.getElementById('status-message');
-        const fileName = document.getElementById('file-name');
-        const startButton = document.getElementById('start-button');
-        const stopButton = document.getElementById('stop-button');
-        const downloadButton = document.getElementById('download-button');
-
-        // --- State Variable ---
-        // We need to remember the last file *after* logging stops
+        const POLLING_INTERVAL = 500; // How often to fetch data (ms)
+        const MAX_DATA_POINTS = 60; // Keep ~30 seconds of data (60 points * 0.5s)
+        
+        // --- State Variables ---
         let lastLoggedFile = null;
+        let isLogging = false;
+        let mainChart = null;
+        let availableChannels = []; // List of all channel names
+        let activeChannels = {}; // Tracks which channels are on the chart
+        const channelColors = {}; // Stores the color for each channel
+        
+        // --- DOM Elements ---
+        const statusText = document.getElementById('status-text');
+        const statusIndicator = document.getElementById('status-indicator');
+        const pollingStatus = document.getElementById('polling-status');
+        const lastFileText = document.getElementById('last-file-text');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const channelCount = document.getElementById('channel-count');
+        const channelSelector = document.getElementById('channel-selector');
 
-        /**
-         * The main function to update the GUI.
-         * It fetches the /api/status endpoint and updates all elements.
-         */
-        async function updateStatus() {
-            try {
-                const response = await fetch('/api/status');
-                if (!response.ok) {
-                    statusMessage.textContent = 'Error: Cannot connect to server';
-                    statusIndicator.classList.remove('bg-logging');
-                    statusIndicator.classList.add('bg-red-500'); // Use red for error
-                    return;
+        // --- Utility Functions ---
+        function generateRandomColor() {
+            const r = Math.floor(Math.random() * 255);
+            const g = Math.floor(Math.random() * 255);
+            const b = Math.floor(Math.random() * 255);
+            return `rgba(${r},${g},${b}, 1)`;
+        }
+
+        // --- Charting Functions ---
+        function initializeMainChart() {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            mainChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [] // Datasets will be added dynamically
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            },
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Voltage (V)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 1 // Smaller points
+                        },
+                        line: {
+                            tension: 0.1 // Slight curve
+                        }
+                    }
+                }
+            });
+        }
+        
+        function toggleChannel(channelName) {
+            if (activeChannels[channelName]) {
+                // --- Remove Channel ---
+                activeChannels[channelName] = false;
+                document.getElementById(`btn-${channelName}`).classList.remove('active');
+                
+                // Find and remove dataset
+                const index = mainChart.data.datasets.findIndex(ds => ds.label === channelName);
+                if (index > -1) {
+                    mainChart.data.datasets.splice(index, 1);
+                    mainChart.update();
+                }
+            } else {
+                // --- Add Channel ---
+                activeChannels[channelName] = true;
+                document.getElementById(`btn-${channelName}`).classList.add('active');
+                
+                // Get or create color
+                if (!channelColors[channelName]) {
+                    channelColors[channelName] = generateRandomColor();
                 }
                 
-                const data = await response.json();
-
-                // 1. Update Status Message
-                statusMessage.textContent = data.message;
-
-                // 2. Update button and indicator state
-                if (data.is_logging) {
-                    // --- We are LOGGING ---
-                    statusIndicator.classList.remove('bg-idle');
-                    statusIndicator.classList.add('bg-logging');
-
-                    startButton.disabled = true;
-                    stopButton.disabled = false;
-                    downloadButton.classList.add('opacity-50', 'cursor-not-allowed');
-
-                    // If a file is being logged, show its name
-                    if (data.current_file) {
-                        fileName.textContent = data.current_file;
-                        lastLoggedFile = data.current_file; // Keep track of this
-                    }
-                } else {
-                    // --- We are IDLE ---
-                    statusIndicator.classList.remove('bg-logging');
-                    statusIndicator.classList.add('bg-idle');
-
-                    startButton.disabled = false;
-                    stopButton.disabled = true;
-
-                    // Handle download link
-                    if (lastLoggedFile) {
-                        fileName.textContent = lastLoggedFile;
-                        downloadButton.classList.remove('opacity-50', 'cursor-not-allowed');
-                        // Set the 'href' to the correct download path
-                        downloadButton.href = '/data/' + lastLoggedFile;
-                    } else {
-                        fileName.textContent = 'No file logged yet';
-                        downloadButton.classList.add('opacity-50', 'cursor-not-allowed');
-                    }
-                }
-
-            } catch (error) {
-                console.error("Error fetching status:", error);
-                statusMessage.textContent = 'Connection lost';
-                statusIndicator.classList.remove('bg-logging');
-                statusIndicator.classList.add('bg-red-500');
+                // Create new dataset
+                const newDataset = {
+                    label: channelName,
+                    data: [],
+                    borderColor: channelColors[channelName],
+                    backgroundColor: channelColors[channelName],
+                    fill: false,
+                };
+                mainChart.data.datasets.push(newDataset);
+                mainChart.update();
             }
         }
 
-        /**
-         * Event listener for the START button.
-         */
-        startButton.addEventListener('click', async () => {
+        // --- Data Fetching ---
+        async function fetchLatestData() {
             try {
-                // Disable button to prevent double-click
-                startButton.disabled = true;
-                startButton.textContent = 'Starting...';
+                const response = await fetch('/api/latest_data');
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                const timestamp = data.timestamp * 1000; // Convert s to ms
+                
+                // First-time population of channel list
+                if (availableChannels.length === 0) {
+                    availableChannels = Object.keys(data.voltages);
+                    channelCount.textContent = availableChannels.length;
+                    
+                    // Build channel selector buttons
+                    channelSelector.innerHTML = ''; // Clear "Loading..."
+                    availableChannels.forEach(channelName => {
+                        const btn = document.createElement('button');
+                        btn.id = `btn-${channelName}`;
+                        btn.className = 'btn channel-btn';
+                        btn.textContent = channelName;
+                        btn.onclick = () => toggleChannel(channelName);
+                        channelSelector.appendChild(btn);
+                    });
+                }
+                
+                // Update chart data for active channels
+                mainChart.data.datasets.forEach(dataset => {
+                    const channelName = dataset.label;
+                    if (data.voltages[channelName] !== undefined) {
+                        const value = data.voltages[channelName];
+                        dataset.data.push({ x: timestamp, y: value });
+                        
+                        // Prune old data
+                        while(dataset.data.length > MAX_DATA_POINTS) {
+                            dataset.data.shift();
+                        }
+                    }
+                });
+                
+                mainChart.update('quiet'); // Update without animation
+                
+                pollingStatus.textContent = "OK";
+                pollingStatus.classList.remove('text-red-500');
+                pollingStatus.classList.add('text-green-500');
 
+            } catch (error) {
+                console.error("Polling error:", error);
+                pollingStatus.textContent = "Lost";
+                pollingStatus.classList.add('text-red-500');
+                pollingStatus.classList.remove('text-green-500');
+            }
+        }
+        
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+                const data = await response.json();
+
+                // Update logging state
+                isLogging = data.is_logging;
+                if (isLogging) {
+                    statusText.textContent = `Logging to ${data.current_file}`;
+                    statusIndicator.classList.add('bg-green-500');
+                    statusIndicator.classList.remove('bg-red-500', 'bg-yellow-400');
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                } else {
+                    statusText.textContent = data.message;
+                    statusIndicator.classList.add('bg-red-500');
+                    statusIndicator.classList.remove('bg-green-500', 'bg-yellow-400');
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                }
+
+                // Update last file
+                if (data.current_file) {
+                    lastLoggedFile = data.current_file;
+                    lastFileText.textContent = lastLoggedFile;
+                    downloadBtn.disabled = false;
+                } else if (!lastLoggedFile) {
+                    // Only update if we don't have a file from a previous run
+                    lastFileText.textContent = "No file logged yet.";
+                    downloadBtn.disabled = true;
+                }
+                
+            } catch (error) {
+                console.error("Status fetch error:", error);
+                statusText.textContent = "Connection lost";
+                statusIndicator.classList.add('bg-red-500');
+                statusIndicator.classList.remove('bg-green-500', 'bg-yellow-400');
+            }
+        }
+
+        // --- Control Functions ---
+        async function startLogging() {
+            try {
                 const response = await fetch('/api/logging/start', { method: 'POST' });
                 const data = await response.json();
-                
-                if (response.ok) {
-                    console.log("Start successful:", data);
-                    // We don't need to do anything else,
-                    // the updateStatus() loop will see the change.
-                } else {
-                    alert('Error: ' + (data.error || 'Failed to start logging.'));
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to start");
                 }
+                await fetchStatus(); // Update UI immediately
             } catch (error) {
-                console.error("Error starting log:", error);
-                alert('Connection error. Could not start logging.');
-            } finally {
-                // Let updateStatus() handle re-enabling
-                startButton.textContent = 'Start Logging';
-                updateStatus(); // Poll immediately
+                console.error("Start logging error:", error);
+                alert(`Error starting log: ${error.message}`);
             }
-        });
+        }
 
-        /**
-         * Event listener for the STOP button.
-         */
-        stopButton.addEventListener('click', async () => {
+        async function stopLogging() {
             try {
-                // Disable button to prevent double-click
-                stopButton.disabled = true;
-                stopButton.textContent = 'Stopping...';
-
                 const response = await fetch('/api/logging/stop', { method: 'POST' });
                 const data = await response.json();
-                
-                if (response.ok) {
-                    console.log("Stop successful:", data);
-                    // THIS IS KEY: Save the filename we got back
-                    if (data.filename) {
-                        lastLoggedFile = data.filename;
-                    }
-                } else {
-                    alert('Error: ' + (data.error || 'Failed to stop logging.'));
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to stop");
                 }
+                lastLoggedFile = data.filename; // Store the filename from the response
+                await fetchStatus(); // Update UI immediately
+                lastFileText.textContent = lastLoggedFile;
+                downloadBtn.disabled = false;
             } catch (error) {
-                console.error("Error stopping log:", error);
-                alert('Connection error. Could not stop logging.');
-            } finally {
-                // Let updateStatus() handle re-enabling
-                stopButton.textContent = 'Stop Logging';
-                updateStatus(); // Poll immediately
+                console.error("Stop logging error:", error);
+                alert(`Error stopping log: ${error.message}`);
             }
-        });
+        }
 
+        function downloadLastFile() {
+            if (lastLoggedFile) {
+                window.location.href = `/data/${lastLoggedFile}`;
+            } else {
+                alert("No file has been logged in this session.");
+            }
+        }
 
-        // --- Run the update function on load and every 2 seconds ---
+        // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
-            updateStatus(); // Run immediately on page load
-            setInterval(updateStatus, 2000); // Poll every 2 seconds
+            initializeMainChart(); // Create the chart canvas
+            fetchStatus(); // Get initial status
+            fetchLatestData(); // Get initial data & build channel list
+            
+            // Start polling loops
+            setInterval(fetchStatus, 2000); // Check status every 2s
+            setInterval(fetchLatestData, POLLING_INTERVAL); // Get data every 500ms
         });
 
     </script>

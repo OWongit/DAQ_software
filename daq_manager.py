@@ -5,18 +5,15 @@ from data_logger import DataLogger
 
 try:
     from ADC import ADS124S08
-
-    print("--- Main: Running on REAL hardware ---")
+    print("--- DAQManager: Running on REAL hardware ---")
 except (ImportError, ModuleNotFoundError):
-    print("--- Main: (Mock Mode) Hardware not found, importing ADC_testable ---")
+    print("--- DAQManager: (Mock Mode) Hardware not found ---")
     from sims.ADC_testable import ADS124S08
 
-# Note: We don't import Enabled_Inputs here,
-# the config is passed in from web_server.py
 
 class DAQManager:
     """
-    Manages all DAQ hardware and logging operations.
+    Manages all DAQ hardware, monitoring, and logging operations.
     This class is designed to be thread-safe.
     """
     
@@ -27,18 +24,27 @@ class DAQManager:
         self.GPIOCHIP = "/dev/gpiochip0"
         self.VREF = 2.5
         self.GAIN = 1
+        self.MONITOR_INTERVAL = 0.2 # Read hardware every 200ms
         
         # --- State Variables ---
         self._is_logging = False
-        self._logging_thread = None
+        self._is_monitoring = False
+        self._monitor_thread = None
         self._status_message = "Idle"
         self.logger = None
         self._lock = threading.Lock() # To protect shared state
         
         # --- Channel Configuration ---
-        # We hold config in memory, copied from the initial file
         self._adc1_config = copy.deepcopy(initial_adc1_config)
         self._adc2_config = copy.deepcopy(initial_adc2_config)
+        # We must build the list of *enabled* channels for the loop
+        self.enabled_channels = self._build_enabled_channel_list()
+        
+        # --- FIX: Initialize _latest_data to prevent crashes on startup ---
+        self._latest_data = {
+            "timestamp": time.time(),
+            "voltages": {}
+        }
         
         # --- Hardware Initialization ---
         try:
@@ -51,129 +57,154 @@ class DAQManager:
             self.adc2.configure_basic(use_internal_ref=True, gain=self.GAIN)
             
             self._status_message = "Idle. ADCs initialized."
+            
+            # --- Auto-start monitoring ---
+            self.start_monitoring()
+            
         except Exception as e:
             self._status_message = f"CRITICAL: Failed to initialize ADCs: {e}. Server may not function."
             print(self._status_message)
-            # In a real app, you might not want to continue,
-            # but here we allow the server to run to report the error.
             self.adc1 = None
             self.adc2 = None
 
+    def _build_enabled_channel_list(self):
+        """Helper to create the list of channels to read in the monitor loop."""
+        channels = []
+        for label, (ch_idx, enabled) in self._adc1_config.items():
+            if enabled:
+                channels.append(('adc1', f"ADC1_{label}", ch_idx))
+        for label, (ch_idx, enabled) in self._adc2_config.items():
+            if enabled:
+                channels.append(('adc2', f"ADC2_{label}", ch_idx))
+        return channels
+
     # --- Public Control Methods ---
     
-    def start_logging(self):
-        """Starts a new logging session in a separate thread."""
+    def start_monitoring(self):
+        """Starts the continuous hardware monitoring loop in a thread."""
         with self._lock:
-            if self._is_logging:
-                raise RuntimeError("Logging is already in progress.")
+            if self._is_monitoring:
+                return # Already running
             
             if not self.adc1 or not self.adc2:
-                raise RuntimeError("ADCs are not initialized. Cannot start logging.")
-            
-            # Create a new logger for this session
-            self.logger = DataLogger(base_dir=self.data_dir)
-            
-            # --- Dynamically create headers from *current* config ---
-            headers = ["timestamp_unix"]
-            
-            # Get all enabled channel labels for ADC1
-            adc1_headers = [f"ADC1_{label}" for label, (_, enabled) in self._adc1_config.items() if enabled]
-            # Get all enabled channel labels for ADC2
-            adc2_headers = [f"ADC2_{label}" for label, (_, enabled) in self._adc2_config.items() if enabled]
-            
-            self.logger.write_header(headers + adc1_headers + adc2_headers)
-            
-            self._is_logging = True
-            self._status_message = f"Logging to {self.logger.get_filename()}"
+                print("Cannot start monitoring, ADCs not initialized.")
+                return
+
+            print("DAQManager: Starting hardware monitoring loop...")
+            self._is_monitoring = True
             
             # Start the hardware
             self.adc1.start()
             self.adc2.start()
             
-            # Start the logging loop in a new thread
-            self._logging_thread = threading.Thread(target=self._logging_loop)
-            self._logging_thread.start()
-            
-            return self.logger.get_filename()
+            # Start the monitoring loop in a new thread
+            self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+            self._monitor_thread.start()
 
-    def _logging_loop(self):
-        """The private method that runs in a thread, collecting data."""
+    def _monitor_loop(self):
+        """The private method that runs in a thread, continuously reading data."""
         
-        # Copy config to be used *for this session*
-        # This prevents config from changing mid-run
-        local_adc1_config = copy.deepcopy(self._adc1_config)
-        local_adc2_config = copy.deepcopy(self._adc2_config)
+        # Use the pre-built list of enabled channels
+        local_channel_list = self.enabled_channels
         
-        while self._is_logging: # Loop continues as long as this flag is True
+        if not local_channel_list:
+            print("MONITOR LOOP: No channels enabled. Stopping.")
+            self._is_monitoring = False
+            return
+            
+        while self._is_monitoring:
             try:
                 csv_timestamp = time.time()
+                current_readings = {} # Holds {'ADC1_AIN10': 1.23, ...}
                 
-                voltages1 = []
-                voltages2 = []
-                
-                for label, (ch_idx, enabled) in local_adc1_config.items():
-                    if not enabled:
-                        continue
+                # --- Read all enabled channels ---
+                for adc_id, full_label, ch_idx in local_channel_list:
                     try:
-                        _, volts1 = self.adc1.read_voltage_single(ch_idx, vref=self.VREF, gain=self.GAIN, settle_discard=True)
-                        voltages1.append(volts1)
+                        adc = self.adc1 if adc_id == 'adc1' else self.adc2
+                        _, volts = adc.read_voltage_single(ch_idx, vref=self.VREF, gain=self.GAIN, settle_discard=True)
+                        current_readings[full_label] = volts
                     except Exception as e:
-                        print(f"Error reading ADC1 {label}: {e}")
-                        voltages1.append(None) # Log a gap
-
-                for label, (ch_idx, enabled) in local_adc2_config.items():
-                    if not enabled:
-                        continue
-                    try:
-                        _, volts2 = self.adc2.read_voltage_single(ch_idx, vref=self.VREF, gain=self.GAIN, settle_discard=True)
-                        voltages2.append(volts2)
-                    except Exception as e:
-                        print(f"Error reading ADC2 {label}: {e}")
-                        voltages2.append(None) # Log a gap
+                        print(f"Error reading {full_label}: {e}")
+                        current_readings[full_label] = None # Log a gap
                 
-                # Log the data
-                row_data = [csv_timestamp] + voltages1 + voltages2
-                self.logger.log_row(row_data)
+                # --- If logging, write to CSV ---
+                if self._is_logging:
+                    # Construct row in the *exact* order of enabled_channels
+                    # This matches the header
+                    row_data = [csv_timestamp] + [current_readings[label] for _, label, _ in local_channel_list]
+                    if self.logger:
+                        self.logger.log_row(row_data)
                 
-                time.sleep(0.2) # Same as your original loop
+                # --- FIX: Update shared data for the API in the correct format ---
+                with self._lock:
+                    self._latest_data = {
+                        "timestamp": csv_timestamp,
+                        "voltages": current_readings
+                    }
+                
+                time.sleep(self.MONITOR_INTERVAL)
 
             except Exception as e:
-                print(f"Error in logging loop: {e}")
-                # Decide if error is fatal
-                # For now, just continue
+                print(f"Error in monitor loop: {e}")
+                time.sleep(1) # Don't spam errors
         
         # --- Cleanup after loop finishes ---
-        print("Logging loop stopping...")
+        print("DAQManager: Monitoring loop stopping...")
         try:
-            self.adc1.stop()
-            self.adc2.stop()
+            if self.adc1: self.adc1.stop()
+            if self.adc2: self.adc2.stop()
         except Exception as e:
             print(f"Error stopping ADCs: {e}")
             
-        if self.logger:
-            self.logger.close()
-        print(f"File {self.logger.get_filename()} closed.")
+        # If logging was active, close the file
+        if self._is_logging:
+            self.stop_logging()
+
+    def start_logging(self):
+        """Starts a new logging session."""
+        with self._lock:
+            if self._is_logging:
+                raise RuntimeError("Logging is already in progress.")
+            
+            if not self._is_monitoring:
+                raise RuntimeError("Monitoring is not active. Cannot start logging.")
+            
+            # Create a new logger for this session
+            self.logger = DataLogger(base_dir=self.data_dir)
+            
+            # --- Dynamically create headers from *current* config ---
+            headers = ["timestamp_unix"] + [label for _, label, _ in self.enabled_channels]
+            self.logger.write_header(headers)
+            
+            self._is_logging = True
+            self._status_message = f"Logging to {self.logger.get_filename()}"
+            
+            return self.logger.get_filename()
 
     def stop_logging(self):
-        """Stops the logging thread and closes the file."""
+        """Stops the logging and closes the file."""
         filename = None
         with self._lock:
             if not self._is_logging:
-                raise RuntimeError("Logging is not in progress.")
+                return # Not logging, nothing to do
             
             if self.logger:
                 filename = self.logger.get_filename()
+                self.logger.close()
+                self.logger = None
             
-            self._is_logging = False # Signal the thread to stop
-            self._status_message = "Idle"
-        
-        if self._logging_thread:
-            self._logging_thread.join() # Wait for the thread to finish
-            self._logging_thread = None
+            self._is_logging = False
+            self._status_message = "Idle. Monitoring."
             
+        print(f"File {filename} closed.")
         return filename
 
     # --- Public Status & Config Methods ---
+
+    def get_latest_data(self):
+        """Thread-safe method to get the latest data block."""
+        with self._lock:
+            return self._latest_data
 
     def is_logging(self):
         """Thread-safe check if logging is active."""
@@ -186,7 +217,7 @@ class DAQManager:
             return self._status_message
 
     def get_current_filename(self):
-        """Thread-safe method to get current filename."""
+        """Thread-safe method to get current logging filename."""
         with self._lock:
             if self.logger and self._is_logging:
                 return self.logger.get_filename()
@@ -201,10 +232,16 @@ class DAQManager:
             }
 
     def set_channel_config(self, adc1_config, adc2_config):
-        """Sets the *in-memory* channel config. Only call when not logging."""
+        """
+        Sets the *in-memory* channel config. 
+        This is a complex operation and should only be done
+        when monitoring is stopped.
+        """
         with self._lock:
-            if self._is_logging:
-                raise RuntimeError("Cannot change config while logging.")
+            if self._is_monitoring:
+                raise RuntimeError("Cannot change config while monitoring.")
             self._adc1_config = copy.deepcopy(adc1_config)
             self._adc2_config = copy.deepcopy(adc2_config)
+            # Re-build the channel list for the next monitor run
+            self.enabled_channels = self._build_enabled_channel_list()
             self._status_message = "Idle. Channel config updated."
