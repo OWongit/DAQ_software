@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import time
+import math
 
 # set "USE_MOCK_HW" to 1 if no raspi present
 USE_MOCK_HW = os.getenv("USE_MOCK_HW", "0") == "1"
@@ -86,7 +87,7 @@ class ADS124S08:
         2000: 0x09,
     }
 
-    def __init__(self, spi_bus, spi_dev, gpiochip="/dev/gpiochip0", reset_pin=None, drdy_pin=None, start_pin=None, max_speed_hz=1_000_000):
+    def __init__(self, id, spi_bus, spi_dev, gpiochip="/dev/gpiochip0", reset_pin=None, drdy_pin=None, start_pin=None, max_speed_hz=1_000_000):
 
         # --- SPI setup ---
         devpath = f"/dev/spidev{spi_bus}.{spi_dev}"
@@ -95,6 +96,7 @@ class ADS124S08:
             if not os.path.exists(devpath):
                 raise RuntimeError(f"{devpath} not found. Enable SPI and/or correct bus/dev.")
 
+        self.id = id
         self.spi = spidev.SpiDev()
         self.spi.open(spi_bus, spi_dev)  # (0,0) or (0,1)
         self.spi.mode = 0b01  # ADS124S08 requires mode 1
@@ -366,6 +368,7 @@ class ADS124S08:
         FS = (1 << 23) - 1  # 0x7FFFFF
         return (code / FS) * (vref / gain)
 
+
     # ----------------- Convenience reads -----------------
     def read_voltage_single(self, ainp, vref=5, gain=1, settle_discard=True):
         """
@@ -383,6 +386,21 @@ class ADS124S08:
         code = self.read_raw_sample()
         volts = self.code_to_volts(code, vref=vref, gain=gain)
         return code, volts
+
+    def read_voltage_full(self, vref=5, gain=1):
+        voltages = []
+        skip_ains = (3, 5, 6, 7)  # skip ain3 and ain5 as IDAC lines
+
+        for i in range(12):  # ain0 through ain11
+            if i in skip_ains:
+                continue
+            try:
+                _, volts = self.read_voltage_single(i, vref=vref, gain=gain, settle_discard=True)
+                voltages.append(volts)
+            except Exception as e:
+                print(f"Error reading ADC{self.id} AIN{i}: {e}")
+
+        return voltages
 
     def close(self):
         try:

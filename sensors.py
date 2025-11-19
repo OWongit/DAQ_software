@@ -1,7 +1,8 @@
 """
 Sensor classes for converting analog voltage readings to physical values.
 """
-
+import config
+from ADC import ADS124S08
 
 class Load_Cell:
     """
@@ -124,6 +125,7 @@ class RTD:
     def __init__(self, V_leg1_idx, V_leg2_idx):
         self.V_leg1_idx = V_leg1_idx
         self.V_leg2_idx = V_leg2_idx
+        #TODO: configure IDAC and reference for RTD using ADC driver
     
     def read(self, voltages):
         """
@@ -159,3 +161,60 @@ class RTD:
         # TODO: Implement temperature calculation
         return 0.0
 
+def initialize_sensors():
+    sensor_labels = []
+    load_cells = []
+    for name, cfg in config.LOAD_CELLS.items():
+        if cfg['enabled']:
+            print(f"Initializing Load Cell {name} with sig_plus_idx {cfg['sig_plus_idx']} and sig_minus_idx {cfg['sig_minus_idx']}")
+            sensor = Load_Cell(
+                sig_plus_idx=cfg['sig_plus_idx'],
+                sig_minus_idx=cfg['sig_minus_idx'],
+                excitation_voltage=cfg['excitation_voltage'],
+                sensitivity=cfg['sensitivity']
+            )
+            load_cells.append((name, sensor))
+            sensor_labels.append(f"{name} Force")
+
+    pressure_transducers = []
+    for name, cfg in config.PRESSURE_TRANSDUCERS.items():
+        if cfg['enabled']:
+            print(f"Initializing Pressure Transducer {name} with sig_idx {cfg['sig_idx']}")
+            sensor = Pressure_Transducer(
+                sig_idx=cfg['sig_idx'],
+                excitation_voltage=cfg['excitation_voltage'],
+                V_max=cfg['V_max'],
+                V_min=cfg['V_min'],
+                V_span=cfg['V_span'],
+                P_min=cfg['P_min'],
+                P_max=cfg['P_max']
+            )
+            pressure_transducers.append((name, sensor))
+            sensor_labels.append(f"{name} Pressure")
+
+    rtds = []
+    for name, cfg in config.RTDS.items():
+        if cfg['enabled']:
+            print(f"Initializing RTD {name} with V_leg1_idx {cfg['V_leg1_idx']} and V_leg2_idx {cfg['V_leg2_idx']}")
+
+            sensor = RTD(
+                V_leg1_idx=cfg['V_leg1_idx'],
+                V_leg2_idx=cfg['V_leg2_idx']
+            )
+            rtds.append((name, sensor))
+            sensor_labels.append(f"{name} Temp")
+
+    return sensor_labels, load_cells, pressure_transducers, rtds
+
+def read_sensors(voltages, load_cells, pressure_transducers, rtds):
+    sensor_values = []
+    for name, sensor in load_cells:
+        force = sensor.read(voltages)
+        sensor_values.append(force)
+    for name, sensor in pressure_transducers:
+        pressure = sensor.read(voltages)
+        sensor_values.append(pressure)
+    for name, sensor in rtds:
+        temperature = sensor.read(voltages)
+        sensor_values.append(temperature)
+    return sensor_values
