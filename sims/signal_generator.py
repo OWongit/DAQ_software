@@ -5,7 +5,7 @@ Utility functions to create realistic-looking analog voltage signals
 for feeding into MockADS124S08SpiDevice. All voltages are clipped
 into the [0 V, 5 V] range by default.
 """
-
+#TODO: make more realistic signals for PT, RTD legs, and LS+- signals.
 from __future__ import annotations
 
 from typing import Callable

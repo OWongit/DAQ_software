@@ -7,7 +7,7 @@ from data_logger import DataLogger
 import sensors
 import config
 
-
+# If using simulated hardware type: "export USE_MOCK_HW=1" in the terminal.
 def initialize_simulated_hardware():
     import sims.mock_spidev as mock_spidev
     from sims.ads124s08_mock import MockADS124S08SpiDevice
