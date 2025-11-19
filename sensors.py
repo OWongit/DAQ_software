@@ -15,11 +15,12 @@ class Load_Cell:
         sensitivity (float): Sensitivity in mV/V (default: 0.020)
     """
     
-    def __init__(self, sig_plus_idx, sig_minus_idx, excitation_voltage=5.0, sensitivity=0.020):
+    def __init__(self, sig_plus_idx, sig_minus_idx, max_load, excitation_voltage=5.0, sensitivity=0.0020):
         self.sig_plus_idx = sig_plus_idx
         self.sig_minus_idx = sig_minus_idx
         self.excitation_voltage = excitation_voltage
         self.sensitivity = sensitivity
+        self.max_load = max_load
     
     def read(self, voltages):
         """
@@ -52,8 +53,26 @@ class Load_Cell:
         Returns:
             float: Calculated force
         """
-        # TODO: Implement force calculation
-        return 0.0
+
+        """
+        Calculate normalized force ratio.
+        """
+        # 1. Calculate differential voltage (e.g. 0.008 V)
+        v_diff = sig_plus - sig_minus
+        
+        # 2. Avoid division by zero errors
+        if self.excitation_voltage == 0 or self.sensitivity == 0:
+            return 0.0
+            
+        # 3. Calculate current mV/V reading
+        # Example: 0.008V / 5.0V = 0.0016 V/V = 1.6 mV/V
+        current_mv_per_v = (v_diff / self.excitation_voltage)
+        
+        # 4. Calculate ratio of Full Scale
+        # Example: 1.6 mV/V / 2.0 mV/V (sensitivity) = 0.8 (80% load)
+        ratio = current_mv_per_v / self.sensitivity
+        
+        return ratio * self.max_load
 
 
 class Pressure_Transducer:
@@ -109,8 +128,15 @@ class Pressure_Transducer:
         Returns:
             float: Calculated pressure
         """
-        # TODO: Implement pressure calculation
-        return 0.0
+        if self.V_span == 0:
+            return 0.0
+            
+        pressure_range = self.P_max - self.P_min
+        
+        # Linear mapping
+        pressure = (sig_voltage - self.V_min) * (pressure_range / self.V_span) + self.P_min
+        
+        return pressure
 
 
 class RTD:
@@ -170,6 +196,7 @@ def initialize_sensors():
             sensor = Load_Cell(
                 sig_plus_idx=cfg['sig_plus_idx'],
                 sig_minus_idx=cfg['sig_minus_idx'],
+                max_load=cfg['max_load'],
                 excitation_voltage=cfg['excitation_voltage'],
                 sensitivity=cfg['sensitivity']
             )

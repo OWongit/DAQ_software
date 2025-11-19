@@ -17,21 +17,24 @@ LOAD_CELLS = {
         'sig_plus_idx': 1,      # LS1_SIG+ DO NOT CHANGE THIS VALUE
         'sig_minus_idx': 0,     # LS1_SIG- DO NOT CHANGE THIS VALUE
         'excitation_voltage': 10.0,
-        'sensitivity': 0.020
+        'sensitivity': 0.020,
+        'max_load': 907.1847
     },
     'LS2': {
         'enabled': False,
         'sig_plus_idx': 11,      # LS2_SIG+ DO NOT CHANGE THIS VALUE
         'sig_minus_idx': 10,     # LS2_SIG- DO NOT CHANGE THIS VALUE
         'excitation_voltage': 5.0,
-        'sensitivity': 0.020
+        'sensitivity': 0.020,
+        'max_load': 60.0
     },
     'LS3': {
         'enabled': False,
         'sig_plus_idx': 9,      # LS3_SIG+ DO NOT CHANGE THIS VALUE
         'sig_minus_idx': 8,     # LS3_SIG- DO NOT CHANGE THIS VALUE
         'excitation_voltage': 5.0,
-        'sensitivity': 0.020
+        'sensitivity': 0.020,
+        'max_load': 10.0
     }
 }
 
@@ -127,4 +130,3 @@ RTDS = {
         'V_leg2_idx': 10        # RTD2_L2 DO NOT CHANGE THIS VALUE
     }
 }
-
