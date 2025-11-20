@@ -128,6 +128,10 @@ class Pressure_Transducer:
         Returns:
             float: Calculated pressure
         """
+
+        # Clamp to valid sensor range
+        sig_voltage = max(self.V_min, min(sig_voltage, self.V_max))
+        
         if self.V_span == 0:
             return 0.0
             
