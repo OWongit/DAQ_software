@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time DAQ</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/smoothie/1.34.0/smoothie.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .chart-container { background: #222; border-radius: 8px; padding: 10px; }
+        canvas { width: 100%; height: 150px; display: block; }
+        .val-display { font-family: monospace; color: #00ff00; font-size: 1.2em; }
+        /* Disabled button style */
+        .btn-disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white p-6">
+
+    <!-- Header / Controls -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-blue-400">DAQ Master</h1>
+        <div class="flex gap-4 items-center">
+            <div id="status" class="px-4 py-2 rounded bg-gray-700">Not Logging</div>
+            
+            <!-- NEW: Download Button -->
+            <a id="download-btn" href="#" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold btn-disabled pointer-events-none text-center">
+                Download CSV
+            </a>
+
+            <button onclick="toggleLog('start')" class="px-6 py-2 bg-green-600 hover:bg-green-500 rounded font-bold">Start Log</button>
+            <button onclick="toggleLog('stop')" class="px-6 py-2 bg-red-600 hover:bg-red-500 rounded font-bold">Stop Log</button>
+        </div>
+    </div>
+
+    <!-- Sensor Grid -->
+    <div id="sensor-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Graphs will be injected here by JS -->
+    </div>
+
+    <script>
+        const socket = io();
+        // Safe Jinja parsing
+        const sensorLabels = JSON.parse('{{ sensor_labels | tojson | safe }}'); 
+        const timeSeriesMap = {}; 
+
+        const grid = document.getElementById('sensor-grid');
+        
+        sensorLabels.forEach(label => {
+            const div = document.createElement('div');
+            div.className = 'chart-container';
+            div.innerHTML = `
+                <div class="flex justify-between mb-2">
+                    <span class="font-bold text-gray-300">${label}</span>
+                    <span id="val-${label.replace(/\s/g, '-')}" class="val-display">0.00</span>
+                </div>
+                <canvas id="canvas-${label.replace(/\s/g, '-')}"></canvas>
+            `;
+            grid.appendChild(div);
+
+            const canvas = document.getElementById(`canvas-${label.replace(/\s/g, '-')}`);
+            const chart = new SmoothieChart({
+                millisPerPixel: 20,
+                grid: { fillStyle: '#222', strokeStyle: 'rgba(119,119,119,0.25)', millisPerLine: 1000 },
+                tooltip: true,
+                responsive: true
+            });
+            
+            const series = new TimeSeries();
+            chart.addTimeSeries(series, { strokeStyle: '#00ff00', lineWidth: 2 });
+            chart.streamTo(canvas, 1000);
+            timeSeriesMap[label] = series;
+        });
+
+        socket.on('daq_update', (data) => {
+            const timestamp = new Date().getTime();
+            
+            // Status Update
+            const statusDiv = document.getElementById('status');
+            if(data.is_logging) {
+                statusDiv.textContent = "LOGGING ACTIVE";
+                statusDiv.className = "px-4 py-2 rounded bg-red-600 animate-pulse";
+            } else {
+                statusDiv.textContent = "Ready / Idle";
+                statusDiv.className = "px-4 py-2 rounded bg-gray-700";
+            }
+
+            // NEW: Download Button Logic
+            const downloadBtn = document.getElementById('download-btn');
+            if (data.filename) {
+                // Enable button
+                downloadBtn.classList.remove('btn-disabled', 'pointer-events-none');
+                downloadBtn.href = `/download/${data.filename}`;
+                downloadBtn.textContent = "Download " + data.filename.substring(5, 16) + "..."; // Show short name
+            } else {
+                // Disable button if no file yet
+                downloadBtn.classList.add('btn-disabled', 'pointer-events-none');
+                downloadBtn.textContent = "No File";
+                downloadBtn.href = "#";
+            }
+
+            // Graph Update
+            for (const [label, value] of Object.entries(data.sensors)) {
+                if (timeSeriesMap[label]) {
+                    timeSeriesMap[label].append(timestamp, value);
+                }
+                const valId = `val-${label.replace(/\s/g, '-')}`;
+                const el = document.getElementById(valId);
+                if (el) el.textContent = value.toFixed(3);
+            }
+        });
+
+        function toggleLog(cmd) {
+            socket.emit('toggle_logging', { command: cmd });
+        }
+    </script>
+</body>
+</html>
