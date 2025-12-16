@@ -3,211 +3,667 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DAQ Control Panel</title>
-    <!-- We'll use Tailwind CSS for easy styling -->
+    <title>DAQ Sensor Monitor</title>
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        // Customizing Tailwind theme slightly
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'idle': '#6b7280', // Gray
-                        'logging': '#22c55e', // Green
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Smoothie.js for real-time graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/smoothie@1.36.0/smoothie.min.js"></script>
+    <!-- Socket.IO client -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
-        /* A little extra style for disabled buttons */
-        button:disabled {
-            opacity: 0.5;
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100vh;
+            background-color: #000000;
+        }
+        .graph-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-sizing: border-box;
+            padding-bottom: 25px; /* Space for bottom labels */
+        }
+        .graph-container canvas {
+            display: block;
+            width: 100%;
+            flex: 1;
+            min-height: 0;
+            box-sizing: border-box;
+        }
+        .connection-status {
+            position: fixed;
+            top: 15px;
+            left: 10px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .connection-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .connection-indicator.connected {
+            background-color: #22c55e;
+        }
+        .connection-indicator.disconnected {
+            background-color: #ef4444;
+        }
+        .connection-text {
+            color: white;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .download-button {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            padding: 8px 12px;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: background-color 0.2s;
+        }
+        .download-button:hover {
+            background-color: #2563eb;
+        }
+        .download-button:disabled {
+            background-color: #9ca3af;
             cursor: not-allowed;
+        }
+        .system-info {
+            position: fixed;
+            top: 10px;
+            left: 70px;
+            z-index: 1000;
+            background-color: rgba(56, 56, 56, 0.9);
+            border-radius: 6px;
+            padding: 6px 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            max-width: calc(100vw - 250px);
+        }
+        .system-info:hover {
+            background-color: rgb(36, 36, 36);
+        }
+        .system-info-compact {
+            color: white;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+        .system-info-compact span {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .system-info-expanded {
+            display: none;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 10px;
+        }
+        .system-info.expanded .system-info-expanded {
+            display: block;
+        }
+        .system-info-expanded div {
+            margin: 4px 0;
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+        .system-info-expanded .label {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        .system-info-expanded .value {
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
         }
     </style>
 </head>
-<body class="bg-gray-100 font-sans flex items-center justify-center min-h-screen">
-
-    <div class="w-full max-w-md bg-white rounded-lg shadow-xl p-6 md:p-8">
-        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">DAQ Control Panel</h1>
-
-        <!-- Status Section -->
-        <div class="mb-6">
-            <h2 class="text-lg font-semibold text-gray-700 mb-2">Status</h2>
-            <div class="flex items-center p-4 bg-gray-50 rounded-lg">
-                <div id="status-indicator" class="w-4 h-4 rounded-full bg-idle mr-3 transition-colors"></div>
-                <span id="status-message" class="text-lg text-gray-800 font-medium">Connecting...</span>
-            </div>
-        </div>
-
-        <!-- File Section -->
-        <div class="mb-6">
-            <h2 class="text-lg font-semibold text-gray-700 mb-2">Current File</h2>
-            <div class="p-4 bg-gray-50 rounded-lg">
-                <span id="file-name" class="text-gray-600 italic break-all">No file logged yet</span>
-            </div>
-        </div>
-
-        <!-- Controls Section -->
-        <div class="grid grid-cols-2 gap-4 mb-4">
-            <button id="start-button" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-green-700 transition-all">
-                Start Logging
-            </button>
-            <button id="stop-button" class="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-red-700 transition-all">
-                Stop Logging
-            </button>
-        </div>
-
-        <!-- Download Button (acts as a link) -->
-        <a id="download-button" href="#" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-blue-700 transition-all text-center block">
-            Download Last File
-        </a>
-
+<body>
+    <!-- Connection Status Indicator -->
+    <div class="connection-status">
+        <div id="connection-indicator" class="connection-indicator disconnected"></div>
+        <span id="connection-text" class="connection-text">offline</span>
     </div>
+    
+    <!-- System Info Display -->
+    <div id="system-info" class="system-info" style="display: none;">
+        <div class="system-info-compact" id="system-info-compact">
+            <span>CPU: <span id="sys-cpu-temp">--</span>°C</span>
+            <span>|</span>
+            <span>RAM: <span id="sys-ram-used">--</span>/<span id="sys-ram-total">--</span></span>
+            <span>|</span>
+            <span>CPU: <span id="sys-cpu-use">--</span>%</span>
+            <span>|</span>
+            <span>Disk: <span id="sys-disk-percent">--</span></span>
+        </div>
+        <div class="system-info-expanded">
+            <div>
+                <span class="label">CPU Temperature:</span>
+                <span class="value" id="sys-detail-cpu-temp">--</span>
+            </div>
+            <div>
+                <span class="label">RAM Total:</span>
+                <span class="value" id="sys-detail-ram-total">--</span>
+            </div>
+            <div>
+                <span class="label">RAM Used:</span>
+                <span class="value" id="sys-detail-ram-used">--</span>
+            </div>
+            <div>
+                <span class="label">RAM Free:</span>
+                <span class="value" id="sys-detail-ram-free">--</span>
+            </div>
+            <div>
+                <span class="label">CPU Usage:</span>
+                <span class="value" id="sys-detail-cpu-use">--</span>
+            </div>
+            <div>
+                <span class="label">Disk Total:</span>
+                <span class="value" id="sys-detail-disk-total">--</span>
+            </div>
+            <div>
+                <span class="label">Disk Used:</span>
+                <span class="value" id="sys-detail-disk-used">--</span>
+            </div>
+            <div>
+                <span class="label">Disk Free:</span>
+                <span class="value" id="sys-detail-disk-free">--</span>
+            </div>
+            <div>
+                <span class="label">Disk Usage:</span>
+                <span class="value" id="sys-detail-disk-percent">--</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Download Button -->
+    <button id="download-button" class="download-button" disabled>
+        Download CSV
+    </button>
+    
+    <!-- Graph Grid Container -->
+    <div id="graphs-container" class="w-full h-screen grid gap-2 p-2" style="grid-auto-rows: 1fr; overflow: hidden; box-sizing: border-box; padding-top: 50px;"></div>
 
     <script>
-        // --- Get references to all our HTML elements ---
-        const statusIndicator = document.getElementById('status-indicator');
-        const statusMessage = document.getElementById('status-message');
-        const fileName = document.getElementById('file-name');
-        const startButton = document.getElementById('start-button');
-        const stopButton = document.getElementById('stop-button');
+        // SocketIO connection
+        const socket = io();
+        
+        // Color list for sensor graphs
+        const COLOR_LIST = [
+            '#bbbbbb', 
+            "#ff0000", 
+            "#ff6200", 
+            "#ffcc00", 
+            "#80ff00",
+            "#00ff7b", 
+            "#00f2ff", 
+            "#0077ff", 
+            "#9000ff", 
+            "#e600ff", 
+            "#ff006a"
+        ];
+        
+        // State
+        let sensorCharts = {};
+        let sensorTimeSeries = {};
+        let sensorMinMax = {};
+        let sensorCurrentValues = {}; // Store current values for display
+        let sensorColors = {}; // Store line color for each sensor
+        let currentFileName = null;
+        let sensorLabels = [];
+        
+        // Helper function to get unit for sensor type
+        function getSensorUnit(label) {
+            if (label.startsWith('LC')) {
+                return 'Lbs';
+            } else if (label.startsWith('PT')) {
+                return 'Pa';
+            } else if (label.startsWith('RTD')) {
+                return '°C';
+            }
+            return '';
+        }
+        
+        // DOM elements
+        const connectionIndicator = document.getElementById('connection-indicator');
+        const connectionText = document.getElementById('connection-text');
         const downloadButton = document.getElementById('download-button');
-
-        // --- State Variable ---
-        // We need to remember the last file *after* logging stops
-        let lastLoggedFile = null;
-
-        /**
-         * The main function to update the GUI.
-         * It fetches the /api/status endpoint and updates all elements.
-         */
-        async function updateStatus() {
-            try {
-                const response = await fetch('/api/status');
-                if (!response.ok) {
-                    statusMessage.textContent = 'Error: Cannot connect to server';
-                    statusIndicator.classList.remove('bg-logging');
-                    statusIndicator.classList.add('bg-red-500'); // Use red for error
-                    return;
-                }
+        const graphsContainer = document.getElementById('graphs-container');
+        
+        // Connection status handlers
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            connectionIndicator.classList.remove('disconnected');
+            connectionIndicator.classList.add('connected');
+            if (connectionText) {
+                connectionText.textContent = 'online';
+            }
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            connectionIndicator.classList.remove('connected');
+            connectionIndicator.classList.add('disconnected');
+            if (connectionText) {
+                connectionText.textContent = 'offline';
+            }
+        });
+        
+        socket.on('connected', (data) => {
+            console.log('Server confirmed connection:', data);
+        });
+        
+        // System info DOM elements
+        const systemInfoContainer = document.getElementById('system-info');
+        const systemInfoCompact = document.getElementById('system-info-compact');
+        
+        // System info handler
+        socket.on('system_info', (data) => {
+            if (!data) return;
+            
+            // Show system info container
+            if (systemInfoContainer) {
+                systemInfoContainer.style.display = 'block';
+            }
+            
+            // Update compact view
+            const cpuTempEl = document.getElementById('sys-cpu-temp');
+            const ramUsedEl = document.getElementById('sys-ram-used');
+            const ramTotalEl = document.getElementById('sys-ram-total');
+            const cpuUseEl = document.getElementById('sys-cpu-use');
+            const diskPercentEl = document.getElementById('sys-disk-percent');
+            
+            if (cpuTempEl && data.cpu_temp) {
+                cpuTempEl.textContent = data.cpu_temp;
+            }
+            if (ramUsedEl && data.ram && data.ram.used) {
+                ramUsedEl.textContent = data.ram.used;
+            }
+            if (ramTotalEl && data.ram && data.ram.total) {
+                ramTotalEl.textContent = data.ram.total;
+            }
+            if (cpuUseEl && data.cpu_use) {
+                cpuUseEl.textContent = data.cpu_use;
+            }
+            if (diskPercentEl && data.disk && data.disk.percent) {
+                diskPercentEl.textContent = data.disk.percent;
+            }
+            
+            // Update expanded view
+            const detailCpuTemp = document.getElementById('sys-detail-cpu-temp');
+            const detailRamTotal = document.getElementById('sys-detail-ram-total');
+            const detailRamUsed = document.getElementById('sys-detail-ram-used');
+            const detailRamFree = document.getElementById('sys-detail-ram-free');
+            const detailCpuUse = document.getElementById('sys-detail-cpu-use');
+            const detailDiskTotal = document.getElementById('sys-detail-disk-total');
+            const detailDiskUsed = document.getElementById('sys-detail-disk-used');
+            const detailDiskFree = document.getElementById('sys-detail-disk-free');
+            const detailDiskPercent = document.getElementById('sys-detail-disk-percent');
+            
+            if (detailCpuTemp && data.cpu_temp) {
+                detailCpuTemp.textContent = data.cpu_temp + '°C';
+            }
+            if (detailRamTotal && data.ram && data.ram.total) {
+                detailRamTotal.textContent = data.ram.total;
+            }
+            if (detailRamUsed && data.ram && data.ram.used) {
+                detailRamUsed.textContent = data.ram.used;
+            }
+            if (detailRamFree && data.ram && data.ram.free) {
+                detailRamFree.textContent = data.ram.free;
+            }
+            if (detailCpuUse && data.cpu_use) {
+                detailCpuUse.textContent = data.cpu_use + '%';
+            }
+            if (detailDiskTotal && data.disk && data.disk.total) {
+                detailDiskTotal.textContent = data.disk.total;
+            }
+            if (detailDiskUsed && data.disk && data.disk.used) {
+                detailDiskUsed.textContent = data.disk.used;
+            }
+            if (detailDiskFree && data.disk && data.disk.free) {
+                detailDiskFree.textContent = data.disk.free;
+            }
+            if (detailDiskPercent && data.disk && data.disk.percent) {
+                detailDiskPercent.textContent = data.disk.percent;
+            }
+        });
+        
+        // Expand/collapse system info on click
+        if (systemInfoContainer) {
+            systemInfoContainer.addEventListener('click', () => {
+                systemInfoContainer.classList.toggle('expanded');
+            });
+        }
+        
+        // Sensor data handler
+        socket.on('sensor_data', (data) => {
+            if (!data.labels || !data.values || !Array.isArray(data.labels) || !Array.isArray(data.values)) {
+                console.warn('Invalid sensor data received:', data);
+                return;
+            }
+            
+            // Debug: log first few data packets
+            if (!sensorLabels.length || Math.random() < 0.01) {
+                console.log('Received sensor_data:', { 
+                    labels: data.labels, 
+                    values: data.values, 
+                    time: data.time,
+                    numLabels: data.labels.length,
+                    numValues: data.values.length 
+                });
+            }
+            
+            // Initialize on first data
+            if (sensorLabels.length === 0) {
+                sensorLabels = data.labels;
+                console.log('Initializing graphs for sensors:', sensorLabels);
+                initializeGraphs();
+                // Resize canvases and start streaming after graphs are created
+                setTimeout(() => {
+                    resizeCanvases();
+                    // Start streaming after canvas is sized
+                    sensorLabels.forEach((label) => {
+                        const canvas = document.getElementById(`canvas-${label}`);
+                        const chart = sensorCharts[label];
+                        if (canvas && chart) {
+                            // Ensure canvas has valid dimensions
+                            if (canvas.width > 0 && canvas.height > 0) {
+                                chart.streamTo(canvas, 100);
+                                console.log('Started streaming for:', label, 'canvas size:', canvas.width, 'x', canvas.height);
+                            } else {
+                                console.warn('Canvas not properly sized for:', label, 'retrying...');
+                                // Retry after a short delay
+                                setTimeout(() => {
+                                    resizeCanvases();
+                                    if (canvas.width > 0 && canvas.height > 0) {
+                                        chart.streamTo(canvas, 100);
+                                        console.log('Started streaming for:', label, 'after retry');
+                                    }
+                                }, 100);
+                            }
+                        }
+                    });
+                }, 200);
+            }
+            
+            // Update each sensor's time series (only if graphs are initialized)
+            if (sensorLabels.length > 0 && Object.keys(sensorTimeSeries).length > 0) {
+                data.labels.forEach((label, index) => {
+                    if (sensorTimeSeries[label] && data.values[index] !== undefined && !isNaN(data.values[index])) {
+                        const value = parseFloat(data.values[index]);
+                        
+                        // Use current timestamp for Smoothie.js (it handles the time window automatically)
+                        const timestamp = Date.now();
+                        
+                        // Update time series
+                        try {
+                            sensorTimeSeries[label].append(timestamp, value);
+                            
+                            // Update current value display
+                            sensorCurrentValues[label] = value;
+                            const valueDisplay = document.getElementById(`value-${label}`);
+                            if (valueDisplay) {
+                                const unit = getSensorUnit(label);
+                                // Format value with appropriate decimal places
+                                let formattedValue;
+                                if (label.startsWith('LS')) {
+                                    formattedValue = value.toFixed(2); // Load cells: 2 decimal places
+                                } else if (label.startsWith('PT')) {
+                                    formattedValue = value.toFixed(2); // Pressure: 2 decimal places
+                                } else {
+                                    formattedValue = value.toFixed(1); // Temperature: 1 decimal place
+                                }
+                                valueDisplay.textContent = `${formattedValue} ${unit}`;
+                                // Set color to match graph line
+                                if (sensorColors[label]) {
+                                    valueDisplay.style.color = sensorColors[label];
+                                }
+                            }
+                            
+                            // Debug logging (first sensor, occasional)
+                            if (index === 0 && Math.random() < 0.05) {
+                                console.log('Appended data:', { label, value, timestamp, chartExists: !!sensorCharts[label] });
+                            }
+                        } catch (error) {
+                            console.error('Error appending to TimeSeries:', error, { label, value, timestamp });
+                        }
+                    
+                        // Track min/max for auto-scaling
+                        if (!sensorMinMax[label]) {
+                            sensorMinMax[label] = { min: value, max: value };
+                            // Set initial range
+                            const chart = sensorCharts[label];
+                            if (chart && chart.options) {
+                                const padding = Math.abs(value) * 0.1 || 1;
+                                chart.options.minValue = value - padding;
+                                chart.options.maxValue = value + padding;
+                            }
+                        } else {
+                            const oldMin = sensorMinMax[label].min;
+                            const oldMax = sensorMinMax[label].max;
+                            sensorMinMax[label].min = Math.min(sensorMinMax[label].min, value);
+                            sensorMinMax[label].max = Math.max(sensorMinMax[label].max, value);
+                            
+                            // Only update if value is outside current range or range changed significantly
+                            const padding = (sensorMinMax[label].max - sensorMinMax[label].min) * 0.1 || 1;
+                            const newMin = sensorMinMax[label].min - padding;
+                            const newMax = sensorMinMax[label].max + padding;
+                            
+                            const chart = sensorCharts[label];
+                            if (chart && chart.options) {
+                                const currentMin = chart.options.minValue || 0;
+                                const currentMax = chart.options.maxValue || 100;
+                                
+                                // Update if value is outside current range or range changed by more than 5%
+                                const rangeChange = Math.abs((newMax - newMin) - (currentMax - currentMin));
+                                const rangePercent = rangeChange / Math.max(Math.abs(currentMax - currentMin), 1) * 100;
+                                
+                                if (value < currentMin || value > currentMax || rangePercent > 5) {
+                                    chart.options.minValue = newMin;
+                                    chart.options.maxValue = newMax;
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+        
+        // Initialize graphs based on sensor labels
+        function initializeGraphs() {
+            const numSensors = sensorLabels.length;
+            if (numSensors === 0) return;
+            
+            // Determine grid layout
+            let cols, rows;
+            if (numSensors === 1) {
+                cols = 1;
+                rows = 1;
+            } else if (numSensors <= 4) {
+                cols = 2;
+                rows = Math.ceil(numSensors / 2);
+            } else {
+                cols = 3;
+                rows = Math.ceil(numSensors / 3);
+            }
+            
+            graphsContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            graphsContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+            
+            // Create graph for each sensor
+            sensorLabels.forEach((label, index) => {
+                // Create container
+                const container = document.createElement('div');
+                container.className = 'graph-container rounded p-2';
+                container.style.backgroundColor = '#000000';
+                container.id = `graph-${label}`;
+                container.style.display = 'flex';
+                container.style.flexDirection = 'column';
+                container.style.height = '100%';
                 
-                const data = await response.json();
-
-                // 1. Update Status Message
-                statusMessage.textContent = data.message;
-
-                // 2. Update button and indicator state
-                if (data.is_logging) {
-                    // --- We are LOGGING ---
-                    statusIndicator.classList.remove('bg-idle');
-                    statusIndicator.classList.add('bg-logging');
-
-                    startButton.disabled = true;
-                    stopButton.disabled = false;
-                    downloadButton.classList.add('opacity-50', 'cursor-not-allowed');
-
-                    // If a file is being logged, show its name
-                    if (data.current_file) {
-                        fileName.textContent = data.current_file;
-                        lastLoggedFile = data.current_file; // Keep track of this
-                    }
+                // Create title with value display
+                const title = document.createElement('div');
+                title.className = 'text-white text-sm font-semibold mb-1 flex justify-between items-center';
+                title.id = `title-${label}`;
+                const titleText = document.createElement('span');
+                titleText.textContent = label;
+                const valueDisplay = document.createElement('span');
+                valueDisplay.id = `value-${label}`;
+                valueDisplay.className = 'font-normal';
+                valueDisplay.textContent = '--';
+                title.appendChild(titleText);
+                title.appendChild(valueDisplay);
+                container.appendChild(title);
+                
+                // Create canvas
+                const canvas = document.createElement('canvas');
+                canvas.id = `canvas-${label}`;
+                canvas.style.width = '100%';
+                canvas.style.height = '100%';
+                container.appendChild(canvas);
+                
+                graphsContainer.appendChild(container);
+                
+                // Create TimeSeries first
+                const timeSeries = new TimeSeries();
+                
+                // Create SmoothieChart - we'll update minValue/maxValue dynamically
+                const smoothieChart = new SmoothieChart({
+                    grid: {
+                        strokeStyle: 'rgba(255, 255, 255, 0.1)',
+                        lineWidth: 1,
+                        millisPerLine: 1000,
+                        verticalSections: 4
+                    },
+                    labels: {
+                        fillStyle: 'rgba(255, 255, 255, 0.8)',
+                        fontSize: 10
+                    },
+                    tooltip: true,
+                    responsive: true,
+                    millisPerPixel: 10,
+                    timestampFormatter: SmoothieChart.timeFormatter,
+                    minValue: 0,
+                    maxValue: 100
+                });
+                
+                // Assign color from COLOR_LIST (cycle through if more sensors than colors)
+                const colorIndex = index % COLOR_LIST.length;
+                const lineColor = COLOR_LIST[colorIndex];
+                
+                smoothieChart.addTimeSeries(timeSeries, {
+                    strokeStyle: lineColor,
+                    lineWidth: 2
+                });
+                
+                // Store references BEFORE streaming
+                sensorCharts[label] = smoothieChart;
+                sensorTimeSeries[label] = timeSeries;
+                sensorMinMax[label] = null;
+                sensorCurrentValues[label] = null;
+                sensorColors[label] = lineColor; // Store color for value display
+                
+                // Set initial color for value display
+                if (valueDisplay) {
+                    valueDisplay.style.color = lineColor;
+                }
+            });
+        }
+        
+        // Handle window resize
+        let resizeTimeout;
+        function resizeCanvases() {
+            sensorLabels.forEach((label) => {
+                const canvas = document.getElementById(`canvas-${label}`);
+                const container = document.getElementById(`graph-${label}`);
+                if (canvas && container) {
+                    // Get container dimensions
+                    const rect = container.getBoundingClientRect();
+                    const title = container.querySelector('div');
+                    const titleHeight = title ? title.offsetHeight + 8 : 0; // title height + margin
+                    const labelSpace = 25; // Space needed for bottom labels
+                    // Set canvas size to match container (accounting for padding, title, and labels)
+                    const padding = 16; // 8px on each side
+                    const width = Math.max(1, rect.width - padding);
+                    const height = Math.max(1, rect.height - titleHeight - padding - labelSpace);
+                    // Set actual canvas dimensions (not just CSS)
+                    canvas.width = width;
+                    canvas.height = height;
+                }
+            });
+        }
+        
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(resizeCanvases, 100);
+        });
+        
+        // Download button handler
+        downloadButton.addEventListener('click', async () => {
+            if (!currentFileName) return;
+            
+            try {
+                const response = await fetch(`/data/${currentFileName}`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = currentFileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
                 } else {
-                    // --- We are IDLE ---
-                    statusIndicator.classList.remove('bg-logging');
-                    statusIndicator.classList.add('bg-idle');
-
-                    startButton.disabled = false;
-                    stopButton.disabled = true;
-
-                    // Handle download link
-                    if (lastLoggedFile) {
-                        fileName.textContent = lastLoggedFile;
-                        downloadButton.classList.remove('opacity-50', 'cursor-not-allowed');
-                        // Set the 'href' to the correct download path
-                        downloadButton.href = '/data/' + lastLoggedFile;
+                    alert('Failed to download file');
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('Error downloading file');
+            }
+        });
+        
+        // Fetch current file name periodically
+        async function updateCurrentFile() {
+            try {
+                const response = await fetch('/api/current-file');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.exists && data.filename) {
+                        currentFileName = data.filename;
+                        downloadButton.disabled = false;
                     } else {
-                        fileName.textContent = 'No file logged yet';
-                        downloadButton.classList.add('opacity-50', 'cursor-not-allowed');
+                        currentFileName = null;
+                        downloadButton.disabled = true;
                     }
                 }
-
             } catch (error) {
-                console.error("Error fetching status:", error);
-                statusMessage.textContent = 'Connection lost';
-                statusIndicator.classList.remove('bg-logging');
-                statusIndicator.classList.add('bg-red-500');
+                console.error('Error fetching current file:', error);
             }
         }
-
-        /**
-         * Event listener for the START button.
-         */
-        startButton.addEventListener('click', async () => {
-            try {
-                // Disable button to prevent double-click
-                startButton.disabled = true;
-                startButton.textContent = 'Starting...';
-
-                const response = await fetch('/api/logging/start', { method: 'POST' });
-                const data = await response.json();
-                
-                if (response.ok) {
-                    console.log("Start successful:", data);
-                    // We don't need to do anything else,
-                    // the updateStatus() loop will see the change.
-                } else {
-                    alert('Error: ' + (data.error || 'Failed to start logging.'));
-                }
-            } catch (error) {
-                console.error("Error starting log:", error);
-                alert('Connection error. Could not start logging.');
-            } finally {
-                // Let updateStatus() handle re-enabling
-                startButton.textContent = 'Start Logging';
-                updateStatus(); // Poll immediately
-            }
-        });
-
-        /**
-         * Event listener for the STOP button.
-         */
-        stopButton.addEventListener('click', async () => {
-            try {
-                // Disable button to prevent double-click
-                stopButton.disabled = true;
-                stopButton.textContent = 'Stopping...';
-
-                const response = await fetch('/api/logging/stop', { method: 'POST' });
-                const data = await response.json();
-                
-                if (response.ok) {
-                    console.log("Stop successful:", data);
-                    // THIS IS KEY: Save the filename we got back
-                    if (data.filename) {
-                        lastLoggedFile = data.filename;
-                    }
-                } else {
-                    alert('Error: ' + (data.error || 'Failed to stop logging.'));
-                }
-            } catch (error) {
-                console.error("Error stopping log:", error);
-                alert('Connection error. Could not stop logging.');
-            } finally {
-                // Let updateStatus() handle re-enabling
-                stopButton.textContent = 'Stop Logging';
-                updateStatus(); // Poll immediately
-            }
-        });
-
-
-        // --- Run the update function on load and every 2 seconds ---
-        document.addEventListener('DOMContentLoaded', () => {
-            updateStatus(); // Run immediately on page load
-            setInterval(updateStatus, 2000); // Poll every 2 seconds
-        });
-
+        
+        // Update current file every 2 seconds
+        setInterval(updateCurrentFile, 2000);
+        updateCurrentFile();
     </script>
 </body>
 </html>

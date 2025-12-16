@@ -368,7 +368,6 @@ class ADS124S08:
         FS = (1 << 23) - 1  # 0x7FFFFF
         return (code / FS) * (vref / gain)
 
-
     # ----------------- Convenience reads -----------------
     def read_voltage_single(self, ainp, vref=5, gain=1, settle_discard=True):
         """
