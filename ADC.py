@@ -2,51 +2,9 @@
 import os
 import time
 import math
-
-# set "USE_MOCK_HW" to 1 if no raspi present
-USE_MOCK_HW = os.getenv("USE_MOCK_HW", "0") == "1"
-
-spidev = None
-gpiod = None
-Direction = None
-Value = None
-
-# Try real hardware first
-if not USE_MOCK_HW:
-    try:
-        import spidev as _real_spidev
-        import gpiod as _real_gpiod
-        from gpiod.line import Direction as _Direction, Value as _Value
-
-        spidev = _real_spidev
-        gpiod = _real_gpiod
-        Direction = _Direction
-        Value = _Value
-    except ModuleNotFoundError:
-        USE_MOCK_HW = True  # fall through to mocks
-
-if USE_MOCK_HW:
-    # Use your mock libraries in the sims package
-    from sims import mock_spidev as spidev
-    from sims import mock_gpiod as gpiod
-
-    try:
-        from sims.mock_gpiod import Direction as _Direction, Value as _Value
-
-        Direction = _Direction
-        Value = _Value
-    except ImportError:
-
-        class Direction:
-            INPUT = "input"
-            OUTPUT = "output"
-
-        class Value:
-            INACTIVE = 0  # DRDY inactive (high)
-            ACTIVE = 1  # DRDY active (low) / output high
-
-        gpiod.Direction = Direction
-        gpiod.Value = Value
+import spidev
+import gpiod
+from gpiod.line import Direction, Value
 
 
 class ADS124S08:
@@ -91,11 +49,8 @@ class ADS124S08:
 
         # --- SPI setup ---
         devpath = f"/dev/spidev{spi_bus}.{spi_dev}"
-        if not USE_MOCK_HW:
-            # On real hardware, make sure the SPI device node exists
-            if not os.path.exists(devpath):
-                raise RuntimeError(f"{devpath} not found. Enable SPI and/or correct bus/dev.")
-
+        if not os.path.exists(devpath):
+            raise RuntimeError(f"{devpath} not found. Enable SPI and/or correct bus/dev.")
         self.id = id
         self.spi = spidev.SpiDev()
         self.spi.open(spi_bus, spi_dev)  # (0,0) or (0,1)

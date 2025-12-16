@@ -7,53 +7,7 @@ from ADC import ADS124S08
 from data_logger import DataLogger
 import sensors
 from app import get_socketio, set_current_logger
-
-get_system_info = None
-
-
-# If using simulated hardware type: "export USE_MOCK_HW=1" in the terminal.
-def initialize_simulated_hardware():
-    global get_system_info
-    import sims.mock_spidev as mock_spidev
-    from sims.mock_pi_info import get_system_info as mock_get_system_info
-
-    get_system_info = mock_get_system_info
-    from sims.ads124s08_mock import MockADS124S08SpiDevice
-    from sims.signal_generator import make_load_cell_signal_pair, make_pressure_transducer_signal, make_rtd_signal_pair
-
-    # LS1_SIG-: AIN0, LS1_SIG+: AIN1, RTD1_L2: AIN2, RTD1_L1: AIN4, LS3_SIG-: AIN8, LS3_SIG+: AIN9, LS2_SIG-: AIN10, LS2_SIG+: AIN11, PT2_SIG: AIN0, PT1_SIG: AIN1, RTD2_L2: AIN2, RTD2_L1: AIN4, PT6_SIG: AIN8, PT5_SIG: AIN9, PT4_SIG: AIN10, PT3_SIG: AIN11
-    adc1_sources = {}
-    adc2_sources = {}
-    adc1_sources[1], adc1_sources[0] = make_load_cell_signal_pair(max_load=907.1847, sensitivity=0.020, excitation_voltage=10.0)
-    adc1_sources[4], adc1_sources[2] = make_rtd_signal_pair(
-        T_min=-20.0, T_max=150.0, T0=0.0, R0=100.0, alpha=0.00385, I_exc=1e-3, lead_resistance=1.0
-    )
-    adc1_sources[9], adc1_sources[8] = make_load_cell_signal_pair(max_load=907.1847, sensitivity=0.020, excitation_voltage=5.0)
-    adc1_sources[11], adc1_sources[10] = make_load_cell_signal_pair(max_load=907.1847, sensitivity=0.020, excitation_voltage=5.0)
-    adc2_sources[0] = make_pressure_transducer_signal(P_min=0.0, P_max=100.0, excitation_voltage=5.0)
-    adc2_sources[1] = make_pressure_transducer_signal(P_min=0.0, P_max=100.0, excitation_voltage=5.0)
-    adc2_sources[4], adc2_sources[2] = make_rtd_signal_pair(
-        T_min=-20.0, T_max=150.0, T0=0.0, R0=100.0, alpha=0.00385, I_exc=1e-3, lead_resistance=1.0
-    )
-    adc2_sources[8] = make_pressure_transducer_signal(P_min=0.0, P_max=100.0, excitation_voltage=5.0)
-    adc2_sources[9] = make_pressure_transducer_signal(P_min=0.0, P_max=100.0, excitation_voltage=5.0)
-    adc2_sources[10] = make_pressure_transducer_signal(P_min=0.0, P_max=100.0, excitation_voltage=5.0)
-    adc2_sources[11] = make_pressure_transducer_signal(P_min=0.0, P_max=100.0, excitation_voltage=5.0)
-
-    # Create the mock SPI-level ADC devices
-    adc1_device = MockADS124S08SpiDevice(signal_sources=adc1_sources, v_ref=5)
-    adc2_device = MockADS124S08SpiDevice(signal_sources=adc2_sources, v_ref=5)
-
-    # Attach them to SPI bus 0, chip selects 0 and 1
-    mock_spidev.register_device(0, 0, adc1_device)
-    mock_spidev.register_device(0, 1, adc2_device)
-
-
-def initialize_real_hardware():
-    global get_system_info
-    from pi_info import get_system_info as real_get_system_info
-
-    get_system_info = real_get_system_info
+from pi_info import get_system_info
 
 
 def main():
@@ -142,13 +96,6 @@ def main():
 
 
 if __name__ == "__main__":
-    if os.getenv("USE_MOCK_HW", "0") == "1":
-        print("Using simulated hardware")
-        initialize_simulated_hardware()
-    else:
-        print("Using real hardware")
-        initialize_real_hardware()
-
     # Import app here to avoid circular import
     from app import app
 
