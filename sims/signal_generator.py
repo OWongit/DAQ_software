@@ -153,10 +153,10 @@ def make_load_cell_signal_pair(
         v_min=0.0,
         v_max=max_load,
         base_span=load_range,
-        slope_min=0.01 * max_load,   # load units / s
+        slope_min=0.01 * max_load,  # load units / s
         slope_max=0.05 * max_load,
-        mode_switch_rate=0.05,       # occasional direction changes
-        spike_rate=0.02,             # occasional step changes in load
+        mode_switch_rate=0.05,  # occasional direction changes
+        spike_rate=0.02,  # occasional step changes in load
         spike_max=0.1 * max_load,
         noise_std=0.005 * max_load,
     )
@@ -268,9 +268,9 @@ def make_rtd_signal_pair(
     T_min: float = -20.0,
     T_max: float = 150.0,
     T0: float = 0.0,
-    R0: float = 100.0,      # Pt100 nominal resistance at T0
-    alpha: float = 0.00385, # linear temp coefficient
-    I_exc: float = 1e-3,    # 1 mA excitation current
+    R0: float = 100.0,  # Pt100 nominal resistance at T0
+    alpha: float = 0.00385,  # linear temp coefficient
+    I_exc: float = 1e-3,  # 1 mA excitation current
     lead_resistance: float = 1.0,  # ohms per lead
     noise_std_volts: float = 2e-4,
 ) -> SignalPair:
@@ -291,11 +291,11 @@ def make_rtd_signal_pair(
         v_min=T_min,
         v_max=T_max,
         base_span=temp_range,
-        slope_min=0.1,   # degC / s
+        slope_min=0.1,  # degC / s
         slope_max=0.5,
         mode_switch_rate=0.02,
         spike_rate=0.01,
-        spike_max=2.0,   # occasional small temp steps
+        spike_max=2.0,  # occasional small temp steps
         noise_std=0.05,
     )
 

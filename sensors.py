@@ -25,8 +25,8 @@ class Load_Cell:
         self.max_load = max_load
 
     def read(self):
-        sig_plus = self.ADC.read_voltage_single[self.sig_plus_idx]
-        sig_minus = self.ADC.read_voltage_single[self.sig_minus_idx]
+        sig_plus = self.ADC.read_voltage_single(self.sig_plus_idx)
+        sig_minus = self.ADC.read_voltage_single(self.sig_minus_idx)
 
         # Placeholder calculation - to be implemented later
         return self._calculate_force(sig_plus, sig_minus)
@@ -90,7 +90,7 @@ class Pressure_Transducer:
         self.P_max = P_max
 
     def read(self):
-        sig_voltage = self.ADC.read_voltage_single[self.sig_idx]
+        sig_voltage = self.ADC.read_voltage_single(self.sig_idx)
 
         # Placeholder calculation - to be implemented later
         return self._calculate_pressure(sig_voltage)
@@ -137,8 +137,8 @@ class RTD:
         # TODO: PERHAPS CAN TIME MULTIPLEX THE RTD REFERENCE/MAIN REFERENCE SO WE CAN READ RTDs AT THE SAME TIME AS OTHER SENSORS?
 
     def read(self):
-        V_lead1 = self.ADC.read_voltage_single[self.V_lead1_idx]
-        V_lead2 = self.ADC.read_voltage_single[self.V_lead2_idx]
+        V_lead1 = self.ADC.read_voltage_single(self.V_lead1_idx)
+        V_lead2 = self.ADC.read_voltage_single(self.V_lead2_idx)
 
         # Placeholder calculation - to be implemented later
         return self._calculate_temperature(V_lead1, V_lead2)

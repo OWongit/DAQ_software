@@ -28,8 +28,8 @@ def initialize_simulated_hardware():
     adc1_sources[4], adc1_sources[2] = make_rtd_signal_pair(
         T_min=-20.0, T_max=150.0, T0=0.0, R0=100.0, alpha=0.00385, I_exc=1e-3, lead_resistance=1.0
     )
-    adc1_sources[9], adc1_sources[8] = make_load_cell_signal_pair(max_load=907.1847, sensitivity=0.020, excitation_voltage=10.0)
-    adc1_sources[11], adc1_sources[10] = make_load_cell_signal_pair(max_load=907.1847, sensitivity=0.020, excitation_voltage=10.0)
+    adc1_sources[9], adc1_sources[8] = make_load_cell_signal_pair(max_load=907.1847, sensitivity=0.020, excitation_voltage=5.0)
+    adc1_sources[11], adc1_sources[10] = make_load_cell_signal_pair(max_load=907.1847, sensitivity=0.020, excitation_voltage=5.0)
     adc2_sources[0] = make_pressure_transducer_signal(P_min=0.0, P_max=100.0, excitation_voltage=5.0)
     adc2_sources[1] = make_pressure_transducer_signal(P_min=0.0, P_max=100.0, excitation_voltage=5.0)
     adc2_sources[4], adc2_sources[2] = make_rtd_signal_pair(
@@ -115,8 +115,6 @@ def main():
             # Read sensor values
             sensor_values = sensors.read_sensors(load_cells, pressure_transducers, rtds)
             print(f"{time_now_str} - Voltages: {voltages}")
-            print(f"{time_now_str} - Labels: {sensor_labels}")
-            print(f"{time_now_str} - Sensors: {sensor_values}")
 
             # Calculate relative time in seconds from session start
             relative_time = (now - session_start_time).total_seconds()

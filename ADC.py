@@ -384,7 +384,7 @@ class ADS124S08:
                 raise TimeoutError("DRDY timeout (settle discard)")
         code = self.read_raw_sample()
         volts = self.code_to_volts(code, vref=vref, gain=gain)
-        return code, volts
+        return volts
 
     def read_voltage_full(self, vref=5, gain=1):
         voltages = []
@@ -394,8 +394,8 @@ class ADS124S08:
             if i in skip_ains:
                 continue
             try:
-                _, volts = self.read_voltage_single(i, vref=vref, gain=gain, settle_discard=True)
-                voltages.append(volts)
+                volts = self.read_voltage_single(i, vref=vref, gain=gain, settle_discard=True)
+                voltages.append(round(volts, 4))  # remove round later
             except Exception as e:
                 print(f"Error reading ADC{self.id} AIN{i}: {e}")
 

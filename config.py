@@ -27,8 +27,8 @@ LOAD_CELLS = {
         # DO NOT CHANGE VALUES ADC, SIG_PLUS_IDX, SIG_MINUS_IDX
         "enabled": True,
         "ADC": 1,
-        "sig_plus_idx": 7,
-        "sig_minus_idx": 6,
+        "sig_plus_idx": 11,
+        "sig_minus_idx": 10,
         "excitation_voltage": 5.0,
         "sensitivity": 0.020,
         "max_load": 60.0,
@@ -37,8 +37,8 @@ LOAD_CELLS = {
         # DO NOT CHANGE VALUES ADC, SIG_PLUS_IDX, SIG_MINUS_IDX
         "enabled": True,
         "ADC": 1,
-        "sig_plus_idx": 5,
-        "sig_minus_idx": 4,
+        "sig_plus_idx": 9,
+        "sig_minus_idx": 8,
         "excitation_voltage": 5.0,
         "sensitivity": 0.020,
         "max_load": 10.0,
@@ -62,7 +62,7 @@ PRESSURE_TRANSDUCERS = {
         # DO NOT CHANGE VALUES ADC, SIG_IDX
         "enabled": True,
         "ADC": 2,
-        "sig_idx": 9,
+        "sig_idx": 1,
         "excitation_voltage": 5.0,
         "V_max": 4.5,
         "V_min": 0.5,
@@ -74,7 +74,7 @@ PRESSURE_TRANSDUCERS = {
         # DO NOT CHANGE VALUES ADC, SIG_IDX
         "enabled": True,
         "ADC": 2,
-        "sig_idx": 8,
+        "sig_idx": 0,
         "excitation_voltage": 5.0,
         "V_max": 4.5,
         "V_min": 0.5,
@@ -86,7 +86,7 @@ PRESSURE_TRANSDUCERS = {
         # DO NOT CHANGE VALUES ADC, SIG_IDX
         "enabled": True,
         "ADC": 2,
-        "sig_idx": 15,
+        "sig_idx": 11,
         "excitation_voltage": 5.0,
         "V_max": 4.5,
         "V_min": 0.5,
@@ -98,7 +98,7 @@ PRESSURE_TRANSDUCERS = {
         # DO NOT CHANGE VALUES ADC, SIG_IDX
         "enabled": True,
         "ADC": 2,
-        "sig_idx": 14,
+        "sig_idx": 10,
         "excitation_voltage": 5.0,
         "V_max": 4.5,
         "V_min": 0.5,
@@ -110,7 +110,7 @@ PRESSURE_TRANSDUCERS = {
         # DO NOT CHANGE VALUES ADC, SIG_IDX
         "enabled": True,
         "ADC": 2,
-        "sig_idx": 13,
+        "sig_idx": 9,
         "excitation_voltage": 5.0,
         "V_max": 4.5,
         "V_min": 0.5,
@@ -122,7 +122,7 @@ PRESSURE_TRANSDUCERS = {
         # DO NOT CHANGE VALUES ADC, SIG_IDX
         "enabled": True,
         "ADC": 2,
-        "sig_idx": 12,
+        "sig_idx": 8,
         "excitation_voltage": 5.0,
         "V_max": 4.5,
         "V_min": 0.5,
@@ -140,6 +140,6 @@ PRESSURE_TRANSDUCERS = {
 #     'V_lead2_idx': int
 # }
 RTDS = {
-    "RTD1": {"enabled": True, "ADC": 1, "V_lead1_idx": 3, "V_lead2_idx": 2},  # DO NOT CHANGE VALUES ADC, V_lead1_idx, V_lead2_idx
-    "RTD2": {"enabled": True, "ADC": 2, "V_lead1_idx": 11, "V_lead2_idx": 10},  # DO NOT CHANGE VALUES ADC, V_lead1_idx, V_lead2_idx
+    "RTD1": {"enabled": True, "ADC": 1, "V_lead1_idx": 4, "V_lead2_idx": 2},  # DO NOT CHANGE VALUES ADC, V_lead1_idx, V_lead2_idx
+    "RTD2": {"enabled": True, "ADC": 2, "V_lead1_idx": 4, "V_lead2_idx": 2},  # DO NOT CHANGE VALUES ADC, V_lead1_idx, V_lead2_idx
 }
