@@ -22,8 +22,8 @@ def main():
     # Get socketio instance for emitting data
     socketio = get_socketio()
 
-    ADC1 = ADS124S08(id=1, spi_bus=0, spi_dev=0, gpiochip=GPIOCHIP, reset_pin=17, drdy_pin=25, start_pin=27, max_speed_hz=1_000_000)
-    ADC2 = ADS124S08(id=2, spi_bus=0, spi_dev=1, gpiochip=GPIOCHIP, reset_pin=22, drdy_pin=24, start_pin=26, max_speed_hz=1_000_000)
+    ADC1 = ADS124S08(id=1, spi_bus=0, spi_dev=0, gpiochip=GPIOCHIP, reset_pin=22, drdy_pin=27, start_pin=17, max_speed_hz=100_000)
+    ADC2 = ADS124S08(id=2, spi_bus=0, spi_dev=1, gpiochip=GPIOCHIP, reset_pin=25, drdy_pin=24, start_pin=26, max_speed_hz=100_000)
 
     # Initialize sensor objects based on config
     sensor_labels, load_cells, pressure_transducers, rtds = sensors.initialize_sensors(ADC1, ADC2)
@@ -46,7 +46,7 @@ def main():
         ADC1.start()
         ADC2.start()
 
-        VREF = 5
+        VREF = 5  # figure out Vref
         GAIN = 1
 
         while True:
@@ -57,17 +57,10 @@ def main():
             if session_start_time is None:
                 session_start_time = now
 
-            voltages1 = ADC1.read_voltage_full(vref=VREF, gain=GAIN)
-            voltages2 = ADC2.read_voltage_full(vref=VREF, gain=GAIN)
-            # [LS1_SIG-,LS1_SIG+,RTD1_L2,RTD1_L1,LS3_SIG-,LS3_SIG+,LS2_SIG-,LS2_SIG+,PT2_SIG,PT1_SIG,RTD2_L2,RTD2_L1,PT6_SIG,PT5_SIG,PT4_SIG,PT3_SIG]
-            voltages = voltages1 + voltages2
-            # Log the raw float data (unchanged)
+            # Read sensor values
+            voltages, sensor_values = sensors.read_sensors(load_cells, pressure_transducers, rtds)
             row_data = [time_now_str] + voltages
             logger.log_row(row_data)
-            time.sleep(0.1)
-
-            # Read sensor values
-            sensor_values = sensors.read_sensors(load_cells, pressure_transducers, rtds)
             print(f"{time_now_str} - Voltages: {voltages}")
 
             # Calculate relative time in seconds from session start
@@ -101,9 +94,7 @@ if __name__ == "__main__":
 
     # Start Flask-SocketIO server in a separate thread
     socketio = get_socketio()
-    server_thread = threading.Thread(
-        target=lambda: socketio.run(app, host="0.0.0.0", port=5000, debug=False, allow_unsafe_werkzeug=True), daemon=True
-    )
+    server_thread = threading.Thread(target=lambda: socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True), daemon=True)
     server_thread.start()
 
     # Run main data acquisition loop

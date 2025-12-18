@@ -29,7 +29,7 @@ class Load_Cell:
         sig_minus = self.ADC.read_voltage_single(self.sig_minus_idx)
 
         # Placeholder calculation - to be implemented later
-        return self._calculate_force(sig_plus, sig_minus)
+        return sig_plus, sig_minus, self._calculate_force(sig_plus, sig_minus)
 
     def _calculate_force(self, sig_plus, sig_minus):
         """
@@ -93,7 +93,7 @@ class Pressure_Transducer:
         sig_voltage = self.ADC.read_voltage_single(self.sig_idx)
 
         # Placeholder calculation - to be implemented later
-        return self._calculate_pressure(sig_voltage)
+        return sig_voltage, self._calculate_pressure(sig_voltage)
 
     def _calculate_pressure(self, sig_voltage):
         """
@@ -109,7 +109,7 @@ class Pressure_Transducer:
 
         # Clamp to valid sensor range
         sig_voltage = max(self.V_min, min(sig_voltage, self.V_max))
-        
+
         if self.V_span == 0:
             return 0.0
 
@@ -145,7 +145,7 @@ class RTD:
         V_lead2 = self.ADC.read_voltage_single(self.V_lead2_idx)
 
         # Placeholder calculation - to be implemented later
-        return self._calculate_temperature(V_lead1, V_lead2)
+        return V_lead1, V_lead2, self._calculate_temperature(V_lead1, V_lead2)
 
     def _calculate_temperature(self, V_lead1, V_lead2):
         """
@@ -168,7 +168,7 @@ def initialize_sensors(adc1, adc2):
     load_cells = []
     for name, cfg in config.LOAD_CELLS.items():
         if cfg["enabled"]:
-            print(f"Initializing Load Cell {name} with sig_plus_idx {cfg['sig_plus_idx']} and sig_minus_idx {cfg['sig_minus_idx']}")
+            print(f"Initializing Load Cell {name} with sig_plus_idx {cfg['SIG+']} and sig_minus_idx {cfg['SIG-']}")
             if cfg["ADC"] == 1:
                 selected_adc = adc1
             elif cfg["ADC"] == 2:
@@ -178,8 +178,8 @@ def initialize_sensors(adc1, adc2):
 
             sensor = Load_Cell(
                 ADC=selected_adc,
-                sig_plus_idx=cfg["sig_plus_idx"],
-                sig_minus_idx=cfg["sig_minus_idx"],
+                sig_plus_idx=cfg["SIG+"],
+                sig_minus_idx=cfg["SIG-"],
                 max_load=cfg["max_load"],
                 excitation_voltage=cfg["excitation_voltage"],
                 sensitivity=cfg["sensitivity"],
@@ -190,7 +190,7 @@ def initialize_sensors(adc1, adc2):
     pressure_transducers = []
     for name, cfg in config.PRESSURE_TRANSDUCERS.items():
         if cfg["enabled"]:
-            print(f"Initializing Pressure Transducer {name} with sig_idx {cfg['sig_idx']}")
+            print(f"Initializing Pressure Transducer {name} with sig_idx {cfg['SIG']}")
             if cfg["ADC"] == 1:
                 selected_adc = adc1
             elif cfg["ADC"] == 2:
@@ -200,7 +200,7 @@ def initialize_sensors(adc1, adc2):
 
             sensor = Pressure_Transducer(
                 ADC=selected_adc,
-                sig_idx=cfg["sig_idx"],
+                sig_idx=cfg["SIG"],
                 excitation_voltage=cfg["excitation_voltage"],
                 V_max=cfg["V_max"],
                 V_min=cfg["V_min"],
@@ -214,7 +214,7 @@ def initialize_sensors(adc1, adc2):
     rtds = []
     for name, cfg in config.RTDS.items():
         if cfg["enabled"]:
-            print(f"Initializing RTD {name} with V_lead1_idx {cfg['V_lead1_idx']} and V_lead2_idx {cfg['V_lead2_idx']}")
+            print(f"Initializing RTD {name} with V_lead1_idx {cfg['L1']} and V_lead2_idx {cfg['L2']}")
             if cfg["ADC"] == 1:
                 selected_adc = adc1
             elif cfg["ADC"] == 2:
@@ -224,8 +224,8 @@ def initialize_sensors(adc1, adc2):
 
             sensor = RTD(
                 ADC=selected_adc,
-                V_lead1_idx=cfg["V_lead1_idx"],
-                V_lead2_idx=cfg["V_lead2_idx"],
+                V_lead1_idx=cfg["L1"],
+                V_lead2_idx=cfg["L2"],
                 #   adc=adc
             )
             rtds.append((name, sensor))
@@ -236,13 +236,19 @@ def initialize_sensors(adc1, adc2):
 
 def read_sensors(load_cells, pressure_transducers, rtds):
     sensor_values = []
+    voltages = []
     for _, sensor in load_cells:
-        force = sensor.read()
+        v_sig_plus, v_sig_minus, force = sensor.read()
+        voltages.append(v_sig_plus)
+        voltages.append(v_sig_minus)
         sensor_values.append(force)
     for _, sensor in pressure_transducers:
-        pressure = sensor.read()
+        v_p_sig, pressure = sensor.read()
+        voltages.append(v_p_sig)
         sensor_values.append(pressure)
     for _, sensor in rtds:
-        temperature = sensor.read()
+        v_lead1, v_lead2, temperature = sensor.read()
+        voltages.append(v_lead1)
+        voltages.append(v_lead2)
         sensor_values.append(temperature)
-    return sensor_values
+    return voltages, sensor_values

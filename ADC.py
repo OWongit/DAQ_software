@@ -45,7 +45,7 @@ class ADS124S08:
         2000: 0x09,
     }
 
-    def __init__(self, id, spi_bus, spi_dev, gpiochip="/dev/gpiochip0", reset_pin=None, drdy_pin=None, start_pin=None, max_speed_hz=1_000_000):
+    def __init__(self, id, spi_bus, spi_dev, gpiochip="/dev/gpiochip0", reset_pin=None, drdy_pin=None, start_pin=None, max_speed_hz=100_000):
 
         # --- SPI setup ---
         devpath = f"/dev/spidev{spi_bus}.{spi_dev}"
@@ -54,9 +54,6 @@ class ADS124S08:
         self.id = id
         self.spi = spidev.SpiDev()
         self.spi.open(spi_bus, spi_dev)  # (0,0) or (0,1)
-        self.spi.mode = 0b01  # ADS124S08 requires mode 1
-        self.spi.max_speed_hz = max_speed_hz
-        self.spi.bits_per_word = 8
         self.spi.mode = 0b01  # ADS124S08 requires mode 1
         self.spi.max_speed_hz = max_speed_hz
         self.spi.bits_per_word = 8
