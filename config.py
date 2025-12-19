@@ -3,6 +3,23 @@ Sensor configuration file.
 Enable/disable sensors and configure their parameters here.
 """
 
+# ---------------------------
+# ADC performance knobs
+# ---------------------------
+# ADS124S08 data rate / filter setting (REG_DATARATE, address 0x04).
+#
+# - Set to None to keep the chip default.
+# - Otherwise set to the exact register value from the ADS124S08 datasheet
+#   "DATARATE" register table (speed/noise tradeoff).
+#  EXAMPLES: slow 0x00, low-mid: 0x03, mid: 0x07, fast: 0x0A. super fast: 0x0D.
+ADC_DATARATE_CODE = 0x0A
+
+# After changing the input multiplexer, the first conversion can be a "settling"
+# sample depending on your filter/rate/gain. When True, we discard one conversion
+# per channel read (slower, but more stable). When False, each channel read uses
+# only one conversion (faster, but can add a small step response / residual).
+ADC_SETTLE_DISCARD = True
+
 # Load Cell Configuration
 # Format: 'name': {
 #     'enabled': bool,

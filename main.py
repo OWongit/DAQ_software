@@ -6,6 +6,7 @@ from datetime import datetime
 from ADC import ADS124S08
 from data_logger import DataLogger
 import sensors
+import config
 from app import get_socketio, set_current_logger
 from pi_info import get_system_info
 
@@ -39,8 +40,8 @@ def main():
         # Reset and basic config
         ADC1.hardware_reset()
         ADC2.hardware_reset()
-        ADC1.configure_basic(use_internal_ref=False, gain=1)
-        ADC2.configure_basic(use_internal_ref=False, gain=1)
+        ADC1.configure_basic(use_internal_ref=False, gain=1, data_rate=config.ADC_DATARATE_CODE)
+        ADC2.configure_basic(use_internal_ref=False, gain=1, data_rate=config.ADC_DATARATE_CODE)
 
         # Start conversions (continuous)
         ADC1.start()
@@ -94,7 +95,10 @@ if __name__ == "__main__":
 
     # Start Flask-SocketIO server in a separate thread
     socketio = get_socketio()
-    server_thread = threading.Thread(target=lambda: socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True), daemon=True)
+    # IMPORTANT: Werkzeug's debug reloader installs signal handlers, which is not allowed
+    # outside the main thread. Since we run the server in a background thread, we must
+    # disable the reloader (and effectively disable debug mode here).
+    server_thread = threading.Thread(target=lambda: socketio.run(app, host="0.0.0.0", port=5000, debug=False, use_reloader=False, allow_unsafe_werkzeug=True), daemon=True)
     server_thread.start()
 
     # Run main data acquisition loop

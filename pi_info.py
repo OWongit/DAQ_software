@@ -23,7 +23,8 @@ def getRAMinfo():
 
 # Return % of CPU used by user as a character string
 def getCPUuse():
-    return str(os.popen("top -n1 | awk '/Cpu\(s\):/ {print $2}'").readline().strip())
+    # Escape backslashes to avoid Python "invalid escape sequence" warnings.
+    return str(os.popen("top -n1 | awk '/Cpu\\(s\\):/ {print $2}'").readline().strip())
 
 
 # Return information about disk space as a list (unit included)
