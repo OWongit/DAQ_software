@@ -134,16 +134,15 @@ class RTD:
         self.ADC = ADC
         self.V_lead1_idx = V_lead1_idx
         self.V_lead2_idx = V_lead2_idx
-        # self.adc = adc
-        # self.adc.enable_rtd_mode()
         # TODO: configure IDAC and reference for RTD using ADC driver'
         # TODO: CANNOT USE MULTIPLE ADC REFERENCES. IF USING AN RTD, EVERY OTHER INPUT CHANNEL WILL USE THE SAME RTD REFERENCE.
         # TODO: PERHAPS CAN TIME MULTIPLEX THE RTD REFERENCE/MAIN REFERENCE SO WE CAN READ RTDs AT THE SAME TIME AS OTHER SENSORS?
 
     def read(self):
+        # self.ADC.enable_rtd_mode() DO NOT USE UNLESS CONNECTED TO AN RTD SENSOR
         V_lead1 = self.ADC.read_voltage_single(self.V_lead1_idx, settle_discard=config.ADC_SETTLE_DISCARD)
         V_lead2 = self.ADC.read_voltage_single(self.V_lead2_idx, settle_discard=config.ADC_SETTLE_DISCARD)
-
+        # self.ADC.disable_rtd_mode() DO NOT USE UNLESS CONNECTED TO AN RTD SENSOR
         # Placeholder calculation - to be implemented later
         return V_lead1, V_lead2, self._calculate_temperature(V_lead1, V_lead2)
 

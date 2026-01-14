@@ -283,30 +283,6 @@ class ADS124S08:
             self.wreg(self.REG_REF, [self._ref_reg_backup])
             self._ref_reg_backup = None
 
-    @staticmethod
-    def code_to_rtd_resistance(code: int, r_ref_ohms: float | None = None, gain: int = 1) -> float:
-        """
-        Convert a raw ADC code (from an RTD measurement) to RTD resistance.
-
-        Assumes a ratiometric setup where:
-            - The same IDAC current flows through the RTD and the reference
-              resistor RREF between AIN6/7, selected as REF1.
-            - The ADC is configured with REFSEL = REF1.
-
-        For this configuration,
-            code / FS ≈ (R_RTD * gain) / RREF
-
-        so:
-            R_RTD = (code / FS) * (RREF / gain)
-
-        FS = 2^23 - 1 for the ADS124S08.
-        """
-        if r_ref_ohms is None:
-            r_ref_ohms = ADS124S08.RREF_OHMS
-
-        FS = (1 << 23) - 1  # 0x7FFFFF
-        return (code / FS) * (r_ref_ohms / gain)
-
     def set_inpmux_single(self, ainp):
         """AINp = ainp (0..11), AINn = AINCOM."""
         if not (0 <= ainp <= 11):
