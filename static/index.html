@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DAQ Sensor Monitor</title>
+    <title>DAQ Monitor</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Smoothie.js for real-time graphs -->
@@ -37,7 +38,7 @@
         }
         .connection-status {
             position: fixed;
-            top: 15px;
+            top: 17px;
             left: 10px;
             z-index: 1000;
             display: flex;
@@ -53,6 +54,7 @@
         }
         .connection-indicator.connected {
             background-color: #22c55e;
+            box-shadow: 0 0 12px rgba(34, 197, 94, 0.8), 0 0 24px rgba(34, 197, 94, 0.4);
         }
         .connection-indicator.disconnected {
             background-color: #ef4444;
@@ -63,11 +65,7 @@
             font-weight: 500;
         }
         .download-button {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-            padding: 8px 12px;
+            padding: 8px 8px;
             background-color: #3b82f6;
             color: white;
             border: none;
@@ -86,7 +84,7 @@
         }
         .system-info {
             position: fixed;
-            top: 10px;
+            top: 11px;
             left: 70px;
             z-index: 1000;
             background-color: rgba(56, 56, 56, 0.9);
@@ -134,9 +132,259 @@
             color: rgba(255, 255, 255, 0.9);
             font-weight: 500;
         }
+        .top-right-actions {
+            position: fixed;
+            top: 7px;
+            right: 10px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .settings-button {
+            padding: 8px;
+            background-color: rgba(56, 56, 56, 0.9);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+        .settings-button:hover {
+            background-color: rgb(36, 36, 36);
+        }
+        .settings-button svg {
+            width: 20px;
+            height: 20px;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open {
+            display: flex;
+        }
+        .modal-box {
+            background-color: #0a0a0a;
+            border-radius: 10px;
+            padding: 24px;
+            max-width: 90vw;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .modal-box h2 {
+            color: #fff;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 16px 0;
+            letter-spacing: 0.02em;
+        }
+        .modal-intro {
+            color: #b4b8bc;
+            font-size: 12px;
+            margin: 0 0 16px 0;
+        }
+        .modal-section {
+            margin-bottom: 24px;
+        }
+        .modal-section h3 {
+            color: #e5e7eb;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+            letter-spacing: 0.03em;
+        }
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .settings-row label {
+            color: #d1d5db;
+            font-size: 12px;
+            font-weight: 500;
+            min-width: 80px;
+        }
+        .settings-row input[type="number"] {
+            width: 90px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: #171717;
+            color: #fff;
+        }
+        .settings-row input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+        }
+        .settings-row input[type="checkbox"]:checked {
+            box-shadow: 0 0 14px rgba(34, 197, 94, 0.7), 0 0 24px rgba(34, 197, 94, 0.35);
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+        .modal-actions button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            border: none;
+        }
+        .modal-actions .btn-save {
+            background-color: #2563eb;
+            color: white;
+            font-weight: 600;
+        }
+        .modal-actions .btn-save:hover {
+            background-color: #3b82f6;
+            box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+        }
+        .modal-actions .btn-cancel {
+            background-color: #374151;
+            color: #e5e7eb;
+        }
+        .modal-actions .btn-cancel:hover {
+            background-color: #4b5563;
+        }
+        .settings-saved-msg {
+            color: #22c55e;
+            font-size: 12px;
+            margin-left: 10px;
+            display: none;
+        }
+        .settings-saved-msg.show {
+            display: inline;
+        }
+        .settings-note {
+            color: #9ca3af;
+            font-size: 11px;
+            margin-top: 8px;
+            display: block;
+        }
+        .adc-slider-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 10px;
+        }
+        .adc-slider-row label {
+            color: #f3f4f6;
+            font-size: 13px;
+            font-weight: 600;
+            min-width: auto;
+        }
+        .adc-slider-row input[type="range"] {
+            width: 120px;
+            accent-color: #3b82f6;
+        }
+        #adc_datarate_value {
+            color: #60a5fa;
+            font-weight: 600;
+            font-size: 14px;
+            min-width: 24px;
+        }
+        .settings-explanation {
+            color: #9ca3af;
+            font-size: 11px;
+            margin: 4px 0 12px 0;
+            max-width: 480px;
+        }
+        .settle-discard-toggle {
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+        .settle-discard-toggle.enabled {
+            background-color: #22c55e;
+            color: white;
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
+        }
+        .settle-discard-toggle.enabled:hover {
+            box-shadow: 0 0 24px rgba(34, 197, 94, 0.7), 0 0 48px rgba(34, 197, 94, 0.35);
+        }
+        .settle-discard-toggle.disabled {
+            background-color: #4b5563;
+            color: #d1d5db;
+        }
+        .top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background-color: rgba(20, 20, 20, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 999;
+        }
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background-color: rgba(20, 20, 20, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 5px;
+            z-index: 999;
+        }
+        .bottom-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .bottom-bar-left img {
+            height: 28px;
+            width: auto;
+            display: block;
+        }
+        .bottom-bar-left .daq-label {
+            color: #e5e7eb;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+        .bottom-bar-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+        }
+        .bottom-bar-right {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 13px;
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+        }
     </style>
 </head>
 <body>
+    <!-- Top bar (same background as bottom bar) -->
+    <div class="top-bar"></div>
     <!-- Connection Status Indicator -->
     <div class="connection-status">
         <div id="connection-indicator" class="connection-indicator disconnected"></div>
@@ -194,15 +442,56 @@
         </div>
     </div>
     
-    <!-- Download Button -->
-    <button id="download-button" class="download-button" disabled>
-        Download CSV
-    </button>
+    <!-- Top right: Settings gear + Download -->
+    <div class="top-right-actions">
+        <button id="settings-button" class="settings-button" title="Settings" aria-label="Settings">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+        </button>
+        <button id="download-button" class="download-button" disabled>
+            Download CSV
+        </button>
+    </div>
+
+    <!-- Settings modal -->
+    <div id="settings-modal" class="modal-overlay" aria-hidden="true">
+        <div class="modal-box">
+            <h2>Settings</h2>
+            <p class="modal-intro">Changes take effect after app restart. Values are saved across sessions.</p>
+            <div id="settings-form-container"></div>
+            <span id="settings-csv-note" class="settings-note">ANOTHER SENSOR DATA CSV FILE WILL BE CREATED UPON RESTART</span>
+            <div class="modal-actions">
+                <span id="settings-saved-msg" class="settings-saved-msg">Saved. Restarting...</span>
+                <button id="settings-cancel" class="btn-cancel">Cancel</button>
+                <button id="settings-save" class="btn-save">Save and RESTART</button>
+            </div>
+        </div>
+    </div>
     
     <!-- Graph Grid Container -->
-    <div id="graphs-container" class="w-full h-screen grid gap-2 p-2" style="grid-auto-rows: 1fr; overflow: hidden; box-sizing: border-box; padding-top: 50px;"></div>
+    <div id="graphs-container" class="w-full h-screen grid gap-2 p-2" style="grid-auto-rows: 1fr; overflow: hidden; box-sizing: border-box; padding-top: 50px; padding-bottom: 40px;"></div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+        <div class="bottom-bar-left">
+            <img src="/images/SARP_LOGO_MK2.png" alt="">
+            <span class="daq-label">Data Acquisition System</span>
+        </div>
+        <div class="bottom-bar-center">© Society for Advanced Rocket Propulsion (SARP)</div>
+        <div class="bottom-bar-right"><span id="bottom-bar-time"></span></div>
+    </div>
 
     <script>
+        // Bottom bar time (far right)
+        function updateBottomBarTime() {
+            const el = document.getElementById('bottom-bar-time');
+            if (el) el.textContent = new Date().toLocaleTimeString();
+        }
+        updateBottomBarTime();
+        setInterval(updateBottomBarTime, 1000);
+
         // SocketIO connection
         const socket = io();
         
@@ -230,16 +519,15 @@
         let currentFileName = null;
         let sensorLabels = [];
         
-        // Helper function to get unit for sensor type
+        // Helper: unit and decimal places for sensor type (single place for LC/PT/RTD)
+        function getSensorFormat(label) {
+            if (label.startsWith('LC')) return { unit: 'Lbs', decimals: 2 };
+            if (label.startsWith('PT')) return { unit: 'Pa', decimals: 2 };
+            if (label.startsWith('RTD')) return { unit: '°C', decimals: 1 };
+            return { unit: '', decimals: 1 };
+        }
         function getSensorUnit(label) {
-            if (label.startsWith('LC')) {
-                return 'Lbs';
-            } else if (label.startsWith('PT')) {
-                return 'Pa';
-            } else if (label.startsWith('RTD')) {
-                return '°C';
-            }
-            return '';
+            return getSensorFormat(label).unit;
         }
         
         // DOM elements
@@ -247,7 +535,166 @@
         const connectionText = document.getElementById('connection-text');
         const downloadButton = document.getElementById('download-button');
         const graphsContainer = document.getElementById('graphs-container');
-        
+        const settingsModal = document.getElementById('settings-modal');
+        const settingsFormContainer = document.getElementById('settings-form-container');
+        const settingsSaveBtn = document.getElementById('settings-save');
+        const settingsCancelBtn = document.getElementById('settings-cancel');
+        const settingsSavedMsg = document.getElementById('settings-saved-msg');
+
+        // Build settings form from API data and inject into container
+        function buildSettingsForm(data) {
+            if (!data || !data.load_cells || !data.pressure_transducers || !data.rtds) return;
+            const adc = data.adc || { datarate_code: 10, settle_discard: true };
+            const dr = Math.min(13, Math.max(0, parseInt(adc.datarate_code, 10) || 10));
+            const sd = !!adc.settle_discard;
+            let html = '';
+            html += '<div class="modal-section"><h3>ADC</h3>';
+            html += '<div class="adc-slider-row"><label>Data rate (0–13)</label><input type="range" id="adc_datarate_code" min="0" max="13" value="' + dr + '"><span id="adc_datarate_value">' + dr + '</span></div>';
+            html += '<p class="settings-explanation">ADS124S08 data rate / filter. Higher = faster, noisier; lower = slower, quieter. 0=slow, 13=fastest.</p>';
+            html += '<div class="adc-slider-row"><label>Settle discard</label>';
+            html += '<input type="checkbox" id="adc_settle_discard" ' + (sd ? 'checked' : '') + ' style="display:none">';
+            html += '<button type="button" id="adc_settle_discard_btn" class="settle-discard-toggle ' + (sd ? 'enabled' : 'disabled') + '">Enabled</button></div>';
+            html += '<p class="settings-explanation">When enabled, discard one conversion per channel read for more stable readings (slower). When disabled, use one conversion per read (faster, may have small step response).</p>';
+            html += '</div>';
+            html += '<div class="modal-section"><h3>Load cells</h3>';
+            for (const [name, cfg] of Object.entries(data.load_cells)) {
+                html += `<div class="settings-row">
+                    <label>${name}</label>
+                    <label><input type="checkbox" id="lc_${name}_enabled" ${cfg.enabled ? 'checked' : ''}> Enabled</label>
+                    <label>Sensitivity <input type="number" id="lc_${name}_sensitivity" step="0.001" value="${Number(cfg.sensitivity)}"></label>
+                    <label>Max load <input type="number" id="lc_${name}_max_load" step="0.01" value="${Number(cfg.max_load)}"></label>
+                </div>`;
+            }
+            html += '</div><div class="modal-section"><h3>Pressure transducers</h3>';
+            for (const [name, cfg] of Object.entries(data.pressure_transducers)) {
+                html += `<div class="settings-row">
+                    <label>${name}</label>
+                    <label><input type="checkbox" id="pt_${name}_enabled" ${cfg.enabled ? 'checked' : ''}> Enabled</label>
+                    <label>P min <input type="number" id="pt_${name}_P_min" value="${Number(cfg.P_min)}"></label>
+                    <label>P max <input type="number" id="pt_${name}_P_max" value="${Number(cfg.P_max)}"></label>
+                </div>`;
+            }
+            html += '</div><div class="modal-section"><h3>RTDs</h3>';
+            for (const [name, cfg] of Object.entries(data.rtds)) {
+                html += `<div class="settings-row">
+                    <label>${name}</label>
+                    <label><input type="checkbox" id="rtd_${name}_enabled" ${cfg.enabled ? 'checked' : ''}> Enabled</label>
+                </div>`;
+            }
+            html += '</div>';
+            settingsFormContainer.innerHTML = html;
+            const slider = document.getElementById('adc_datarate_code');
+            const valueSpan = document.getElementById('adc_datarate_value');
+            if (slider && valueSpan) {
+                slider.addEventListener('input', () => { valueSpan.textContent = slider.value; });
+            }
+            const sdCheck = document.getElementById('adc_settle_discard');
+            const sdBtn = document.getElementById('adc_settle_discard_btn');
+            if (sdCheck && sdBtn) {
+                sdBtn.addEventListener('click', () => {
+                    sdCheck.checked = !sdCheck.checked;
+                    sdBtn.classList.toggle('enabled', sdCheck.checked);
+                    sdBtn.classList.toggle('disabled', !sdCheck.checked);
+                });
+            }
+        }
+
+        // Collect form values into payload for POST /api/settings
+        function collectSettingsPayload() {
+            const load_cells = {};
+            const pressure_transducers = {};
+            const rtds = {};
+            const drEl = document.getElementById('adc_datarate_code');
+            const sdEl = document.getElementById('adc_settle_discard');
+            const adc = {
+                datarate_code: drEl ? Math.min(13, Math.max(0, parseInt(drEl.value, 10) || 0)) : 10,
+                settle_discard: sdEl ? sdEl.checked : true
+            };
+            for (const el of document.querySelectorAll('[id^="lc_"]')) {
+                const m = el.id.match(/^lc_(.+)_(enabled|sensitivity|max_load)$/);
+                if (!m) continue;
+                const [, name, key] = m;
+                if (!load_cells[name]) load_cells[name] = {};
+                if (key === 'enabled') load_cells[name].enabled = el.checked;
+                else { const v = parseFloat(el.value); load_cells[name][key] = isNaN(v) ? 0 : v; }
+            }
+            for (const el of document.querySelectorAll('[id^="pt_"]')) {
+                const m = el.id.match(/^pt_(.+)_(enabled|P_min|P_max)$/);
+                if (!m) continue;
+                const [, name, key] = m;
+                if (!pressure_transducers[name]) pressure_transducers[name] = {};
+                if (key === 'enabled') pressure_transducers[name].enabled = el.checked;
+                else { const v = parseFloat(el.value); pressure_transducers[name][key] = isNaN(v) ? 0 : v; }
+            }
+            for (const el of document.querySelectorAll('[id^="rtd_"]')) {
+                const m = el.id.match(/^rtd_(.+)_enabled$/);
+                if (!m) continue;
+                const [, name] = m;
+                rtds[name] = { enabled: el.checked };
+            }
+            return { adc, load_cells, pressure_transducers, rtds };
+        }
+
+        async function fetchAndPopulateSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                if (res.ok) {
+                    const data = await res.json();
+                    buildSettingsForm(data);
+                }
+            } catch (e) {
+                console.error('Failed to fetch settings:', e);
+            }
+        }
+
+        document.getElementById('settings-button').addEventListener('click', () => {
+            fetchAndPopulateSettings();
+            settingsModal.classList.add('open');
+            settingsModal.setAttribute('aria-hidden', 'false');
+        });
+
+        settingsCancelBtn.addEventListener('click', () => {
+            settingsModal.classList.remove('open');
+            settingsModal.setAttribute('aria-hidden', 'true');
+        });
+
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.classList.remove('open');
+                settingsModal.setAttribute('aria-hidden', 'true');
+            }
+        });
+
+        settingsSaveBtn.addEventListener('click', async () => {
+            const payload = collectSettingsPayload();
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    settingsSavedMsg.textContent = 'Saved. Restarting...';
+                    settingsSavedMsg.classList.add('show');
+                    setTimeout(() => {
+                        settingsSavedMsg.classList.remove('show');
+                        settingsSavedMsg.textContent = 'Saved. Restarting...';
+                        settingsModal.classList.remove('open');
+                        settingsModal.setAttribute('aria-hidden', 'true');
+                    }, 2000);
+                } else {
+                    alert(data.error || 'Failed to save settings');
+                }
+            } catch (e) {
+                console.error('Save settings error:', e);
+                alert('Failed to save settings');
+            }
+        });
+
+        // Load settings on page load so form is ready when user opens modal
+        fetchAndPopulateSettings();
+
         // Connection status handlers
         socket.on('connect', () => {
             console.log('Connected to server');
@@ -422,17 +869,8 @@
                             sensorCurrentValues[label] = value;
                             const valueDisplay = document.getElementById(`value-${label}`);
                             if (valueDisplay) {
-                                const unit = getSensorUnit(label);
-                                // Format value with appropriate decimal places
-                                let formattedValue;
-                                if (label.startsWith('LS')) {
-                                    formattedValue = value.toFixed(2); // Load cells: 2 decimal places
-                                } else if (label.startsWith('PT')) {
-                                    formattedValue = value.toFixed(2); // Pressure: 2 decimal places
-                                } else {
-                                    formattedValue = value.toFixed(1); // Temperature: 1 decimal place
-                                }
-                                valueDisplay.textContent = `${formattedValue} ${unit}`;
+                                const { unit, decimals } = getSensorFormat(label);
+                                valueDisplay.textContent = `${value.toFixed(decimals)} ${unit}`;
                                 // Set color to match graph line
                                 if (sensorColors[label]) {
                                     valueDisplay.style.color = sensorColors[label];
