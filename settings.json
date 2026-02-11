@@ -7,7 +7,7 @@
     "LC1": {
       "enabled": true,
       "sensitivity": 0.02,
-      "max_load": 907.1847
+      "max_load": 1000.0
     },
     "LC2": {
       "enabled": true,
