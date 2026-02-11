@@ -162,19 +162,22 @@ class RTD:
         return 0.0
 
 
+def _adc_for_cfg(cfg, adc1, adc2):
+    """Return the ADC instance (adc1 or adc2) for the given config's ADC index."""
+    if cfg["ADC"] == 1:
+        return adc1
+    if cfg["ADC"] == 2:
+        return adc2
+    raise ValueError(f"Invalid ADC configuration: {cfg['ADC']}")
+
+
 def initialize_sensors(adc1, adc2):
     sensor_labels = []
     load_cells = []
     for name, cfg in config.LOAD_CELLS.items():
         if cfg["enabled"]:
             print(f"Initializing Load Cell {name} with sig_plus_idx {cfg['SIG+']} and sig_minus_idx {cfg['SIG-']}")
-            if cfg["ADC"] == 1:
-                selected_adc = adc1
-            elif cfg["ADC"] == 2:
-                selected_adc = adc2
-            else:
-                raise ValueError(f"Invalid ADC configuration: {cfg['ADC']}")
-
+            selected_adc = _adc_for_cfg(cfg, adc1, adc2)
             sensor = Load_Cell(
                 ADC=selected_adc,
                 sig_plus_idx=cfg["SIG+"],
@@ -190,13 +193,7 @@ def initialize_sensors(adc1, adc2):
     for name, cfg in config.PRESSURE_TRANSDUCERS.items():
         if cfg["enabled"]:
             print(f"Initializing Pressure Transducer {name} with sig_idx {cfg['SIG']}")
-            if cfg["ADC"] == 1:
-                selected_adc = adc1
-            elif cfg["ADC"] == 2:
-                selected_adc = adc2
-            else:
-                raise ValueError(f"Invalid ADC configuration: {cfg['ADC']}")
-
+            selected_adc = _adc_for_cfg(cfg, adc1, adc2)
             sensor = Pressure_Transducer(
                 ADC=selected_adc,
                 sig_idx=cfg["SIG"],
@@ -214,13 +211,7 @@ def initialize_sensors(adc1, adc2):
     for name, cfg in config.RTDS.items():
         if cfg["enabled"]:
             print(f"Initializing RTD {name} with V_lead1_idx {cfg['L1']} and V_lead2_idx {cfg['L2']}")
-            if cfg["ADC"] == 1:
-                selected_adc = adc1
-            elif cfg["ADC"] == 2:
-                selected_adc = adc2
-            else:
-                raise ValueError(f"Invalid ADC configuration: {cfg['ADC']}")
-
+            selected_adc = _adc_for_cfg(cfg, adc1, adc2)
             sensor = RTD(
                 ADC=selected_adc,
                 V_lead1_idx=cfg["L1"],

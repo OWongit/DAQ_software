@@ -1,45 +1,81 @@
-import os
+import subprocess
 
 
-# Return CPU temperature as a character string
 def getCPUtemperature():
-    res = os.popen("vcgencmd measure_temp").readline()
-    return res.replace("temp=", "").replace("'C\n", "")
+    """Return CPU temperature as a string (e.g. '45.2')."""
+    result = subprocess.run(
+        ["vcgencmd", "measure_temp"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout:
+        return ""
+    return result.stdout.strip().replace("temp=", "").replace("'C\n", "").replace("'C", "")
 
 
-# Return RAM information (unit=kb) in a list
-# Index 0: total RAM
-# Index 1: used RAM
-# Index 2: free RAM
 def getRAMinfo():
-    p = os.popen("free")
-    i = 0
-    while 1:
-        i = i + 1
-        line = p.readline()
-        if i == 2:
-            return line.split()[1:4]
+    """Return RAM info (unit=kb) as [total, used, free]."""
+    result = subprocess.run(
+        ["free"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout:
+        return ["0", "0", "0"]
+    lines = result.stdout.strip().splitlines()
+    if len(lines) < 2:
+        return ["0", "0", "0"]
+    # Second line is "Mem: total used free ..."
+    parts = lines[1].split()
+    if len(parts) < 4:
+        return ["0", "0", "0"]
+    return parts[1:4]
 
 
-# Return % of CPU used by user as a character string
 def getCPUuse():
-    # Escape backslashes to avoid Python "invalid escape sequence" warnings.
-    return str(os.popen("top -n1 | awk '/Cpu\\(s\\):/ {print $2}'").readline().strip())
+    """Return % of CPU used as a string."""
+    result = subprocess.run(
+        ["top", "-b", "-n1"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout:
+        return ""
+    for line in result.stdout.splitlines():
+        if "Cpu(s)" in line or "cpu(s)" in line:
+            # Line like "%Cpu(s):  1.2 us,  0.5 sy, ..." - $2 in awk is first number (us %)
+            parts = line.split()
+            for i in range(1, len(parts)):
+                val = parts[i].rstrip(",")
+                try:
+                    float(val)
+                    return val
+                except ValueError:
+                    continue
+            break
+    return ""
 
 
-# Return information about disk space as a list (unit included)
-# Index 0: total disk space
-# Index 1: used disk space
-# Index 2: remaining disk space
-# Index 3: percentage of disk used
 def getDiskSpace():
-    p = os.popen("df -h /")
-    i = 0
-    while 1:
-        i = i + 1
-        line = p.readline()
-        if i == 2:
-            return line.split()[1:5]
+    """Return disk space as [total, used, free, percent] (units in output)."""
+    result = subprocess.run(
+        ["df", "-h", "/"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout:
+        return ["", "", "", ""]
+    lines = result.stdout.strip().splitlines()
+    if len(lines) < 2:
+        return ["", "", "", ""]
+    parts = lines[1].split()
+    if len(parts) < 5:
+        return ["", "", "", ""]
+    return parts[1:5]
 
 
 def get_system_info():
@@ -49,20 +85,21 @@ def get_system_info():
     disk_info = getDiskSpace()
 
     # Format RAM values (convert KB to MB/GB for display)
-    ram_total_kb = int(ram_info[0])
-    ram_used_kb = int(ram_info[1])
-    ram_free_kb = int(ram_info[2])
+    try:
+        ram_total_kb = int(ram_info[0])
+        ram_used_kb = int(ram_info[1])
+        ram_free_kb = int(ram_info[2])
+    except (ValueError, IndexError):
+        ram_total_kb = ram_used_kb = ram_free_kb = 0
 
-    # Convert to MB or GB for display
     def format_memory(kb):
         if kb >= 1024 * 1024:  # >= 1GB
             return f"{kb / (1024 * 1024):.1f}GB"
-        else:
-            return f"{kb / 1024:.0f}MB"
+        return f"{kb / 1024:.0f}MB"
 
     return {
         "cpu_temp": cpu_temp,
         "ram": {"total": format_memory(ram_total_kb), "used": format_memory(ram_used_kb), "free": format_memory(ram_free_kb)},
         "cpu_use": cpu_use,
-        "disk": {"total": disk_info[0], "used": disk_info[1], "free": disk_info[2], "percent": disk_info[3]},
+        "disk": {"total": disk_info[0] if len(disk_info) > 0 else "", "used": disk_info[1] if len(disk_info) > 1 else "", "free": disk_info[2] if len(disk_info) > 2 else "", "percent": disk_info[3] if len(disk_info) > 3 else ""},
     }

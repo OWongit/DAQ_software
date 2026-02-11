@@ -1,0 +1,63 @@
+{
+  "adc": {
+    "datarate_code": 10,
+    "settle_discard": true
+  },
+  "load_cells": {
+    "LC1": {
+      "enabled": true,
+      "sensitivity": 0.02,
+      "max_load": 907.1847
+    },
+    "LC2": {
+      "enabled": true,
+      "sensitivity": 0.02,
+      "max_load": 60.0
+    },
+    "LC3": {
+      "enabled": true,
+      "sensitivity": 0.02,
+      "max_load": 10.0
+    }
+  },
+  "pressure_transducers": {
+    "PT1": {
+      "enabled": true,
+      "P_min": 0.0,
+      "P_max": 100.0
+    },
+    "PT2": {
+      "enabled": true,
+      "P_min": 0.0,
+      "P_max": 100.0
+    },
+    "PT3": {
+      "enabled": true,
+      "P_min": 0.0,
+      "P_max": 100.0
+    },
+    "PT4": {
+      "enabled": true,
+      "P_min": 0.0,
+      "P_max": 100.0
+    },
+    "PT5": {
+      "enabled": true,
+      "P_min": 0.0,
+      "P_max": 100.0
+    },
+    "PT6": {
+      "enabled": true,
+      "P_min": 0.0,
+      "P_max": 100.0
+    }
+  },
+  "rtds": {
+    "RTD1": {
+      "enabled": true
+    },
+    "RTD2": {
+      "enabled": true
+    }
+  }
+}

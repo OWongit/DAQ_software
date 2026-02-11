@@ -1,5 +1,4 @@
 import os
-import time
 import threading
 from datetime import datetime
 
@@ -7,12 +6,15 @@ from ADC import ADS124S08
 from data_logger import DataLogger
 import sensors
 import config
-from app import get_socketio, set_current_logger
+from app import get_socketio, set_current_logger, get_restart_requested_event
 from pi_info import get_system_info
 
 
 def main():
     GPIOCHIP = "/dev/gpiochip0"  # Pi Zero/3/4; adjust if needed
+
+    # Load settings from settings.json (sets config.LOAD_CELLS, etc., and ADC_*)
+    config.load_settings()
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     save_dir = os.path.join(script_dir, "data")
@@ -35,6 +37,7 @@ def main():
     # Track last system info update time for throttling
     last_system_info_time = None
     system_info_interval = 2.5
+    do_restart = False
 
     try:
         # Reset and basic config
@@ -47,10 +50,9 @@ def main():
         ADC1.start()
         ADC2.start()
 
-        VREF = 5  # figure out Vref
-        GAIN = 1
-
         while True:
+            if get_restart_requested_event().is_set():
+                break
             now = datetime.now()
             time_now_str = now.strftime("%H:%M:%S.%f")
 
@@ -82,11 +84,14 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        do_restart = get_restart_requested_event().is_set()
+        get_restart_requested_event().clear()
         ADC1.stop()
         ADC2.stop()
         ADC1.close()
         ADC2.close()
         set_current_logger(None)
+    return "restart" if do_restart else None
 
 
 if __name__ == "__main__":
@@ -101,5 +106,8 @@ if __name__ == "__main__":
     server_thread = threading.Thread(target=lambda: socketio.run(app, host="0.0.0.0", port=5000, debug=False, use_reloader=False, allow_unsafe_werkzeug=True), daemon=True)
     server_thread.start()
 
-    # Run main data acquisition loop
-    main()
+    # Run main data acquisition loop; re-run on restart request
+    while True:
+        result = main()
+        if result != "restart":
+            break
