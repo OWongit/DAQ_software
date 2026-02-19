@@ -10,6 +10,12 @@ from flask_socketio import SocketIO, emit
 
 import config
 
+#TODO: add rename feature in the settings. (displays )
+#TODO: note that LC1 is 10V power, LC2 and LC3 are 5V power.
+#TODO: Add offset setting
+#TODO: Add unit selection N, Lb, KG setting
+
+
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 _data_dir = os.path.join(_script_dir, "data")
 _images_dir = os.path.join(_script_dir, "images")

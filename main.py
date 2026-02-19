@@ -13,7 +13,7 @@ from pi_info import get_system_info
 def main():
     GPIOCHIP = "/dev/gpiochip0"  # Pi Zero/3/4; adjust if needed
 
-    # Load settings from settings.json (sets config.LOAD_CELLS, etc., and ADC_*)
+    # Load settings from json file(sets config.LOAD_CELLS, etc., and ADC_*)
     config.load_settings()
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
