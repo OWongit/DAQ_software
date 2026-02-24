@@ -4,60 +4,93 @@
     "settle_discard": true
   },
   "load_cells": {
-    "LC1": {
+    "LC1 (10V)": {
+      "display_name": "",
+      "unit": "lbf",
       "enabled": true,
       "sensitivity": 0.02,
-      "max_load": 1000.0
+      "max_load": 1000,
+      "offset": 0
     },
-    "LC2": {
+    "LC2 (5V)": {
+      "display_name": "",
+      "unit": "lbf",
       "enabled": true,
       "sensitivity": 0.02,
-      "max_load": 60.0
+      "max_load": 60,
+      "offset": 0
     },
-    "LC3": {
+    "LC3 (5V)": {
+      "display_name": "",
+      "unit": "lbf",
       "enabled": true,
       "sensitivity": 0.02,
-      "max_load": 10.0
+      "max_load": 10,
+      "offset": 0
     }
   },
   "pressure_transducers": {
-    "PT1": {
+    "PT1 (5V)": {
+      "display_name": "",
+      "unit": "Pa",
       "enabled": true,
-      "P_min": 0.0,
-      "P_max": 100.0
+      "P_min": 0,
+      "P_max": 100,
+      "offset": 0
     },
-    "PT2": {
+    "PT2 (5V)": {
+      "display_name": "",
+      "unit": "Pa",
       "enabled": true,
-      "P_min": 0.0,
-      "P_max": 100.0
+      "P_min": 0,
+      "P_max": 100,
+      "offset": 0
     },
-    "PT3": {
+    "PT3 (5V)": {
+      "display_name": "",
+      "unit": "Pa",
       "enabled": true,
-      "P_min": 0.0,
-      "P_max": 100.0
+      "P_min": 0,
+      "P_max": 100,
+      "offset": 0
     },
-    "PT4": {
+    "PT4 (5V)": {
+      "display_name": "",
+      "unit": "Pa",
       "enabled": true,
-      "P_min": 0.0,
-      "P_max": 100.0
+      "P_min": 0,
+      "P_max": 100,
+      "offset": 0
     },
-    "PT5": {
+    "PT5 (5V)": {
+      "display_name": "",
+      "unit": "Pa",
       "enabled": true,
-      "P_min": 0.0,
-      "P_max": 100.0
+      "P_min": 0,
+      "P_max": 100,
+      "offset": 0
     },
-    "PT6": {
+    "PT6 (5V)": {
+      "display_name": "",
+      "unit": "Pa",
       "enabled": true,
-      "P_min": 0.0,
-      "P_max": 100.0
+      "P_min": 0,
+      "P_max": 100,
+      "offset": 0
     }
   },
   "rtds": {
     "RTD1": {
-      "enabled": true
+      "display_name": "",
+      "unit": "\u00b0C",
+      "enabled": true,
+      "offset": 0
     },
     "RTD2": {
-      "enabled": true
+      "display_name": "",
+      "unit": "\u00b0C",
+      "enabled": true,
+      "offset": 0
     }
   }
 }

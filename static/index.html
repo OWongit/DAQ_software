@@ -234,6 +234,28 @@
         .settings-row input[type="checkbox"]:checked {
             box-shadow: 0 0 14px rgba(34, 197, 94, 0.7), 0 0 24px rgba(34, 197, 94, 0.35);
         }
+
+        .settings-row input[type="text"].display-name {
+            flex: 1;
+            min-width: 120px;
+            max-width: 200px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: #171717;
+            color: #fff;
+            font-size: 12px;
+        }
+        .settings-row select.unit-select {
+            min-width: 90px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: #171717;
+            color: #fff;
+            font-size: 12px;
+            cursor: pointer;
+        }
         .modal-actions {
             display: flex;
             gap: 10px;
@@ -518,16 +540,37 @@
         let sensorColors = {}; // Store line color for each sensor
         let currentFileName = null;
         let sensorLabels = [];
+        let sensorDisplayNames = {}; // Display names from settings (e.g. LC1 -> "Strain Gauge 1")
+        let sensorUnits = {}; // Selected unit per sensor (e.g. LC1 -> "lbf"); falls back to getSensorFormat().unit
         
-        // Helper: unit and decimal places for sensor type (single place for LC/PT/RTD)
+        // Unit options typically found on sensor data sheets
+        const LOAD_CELL_UNITS = [
+            { value: 'lbf', label: 'lbf' }, { value: 'lb', label: 'lb' }, { value: 'lbs', label: 'lbs' },
+            { value: 'N', label: 'N' }, { value: 'kN', label: 'kN' }, { value: 'kgf', label: 'kgf' },
+            { value: 'oz', label: 'oz' }, { value: 'ton', label: 'ton (US)' }, { value: 'tonne', label: 'tonne' },
+            { value: 'g', label: 'g' }
+        ];
+        const PRESSURE_UNITS = [
+            { value: 'Pa', label: 'Pa' }, { value: 'kPa', label: 'kPa' }, { value: 'MPa', label: 'MPa' },
+            { value: 'psi', label: 'psi' }, { value: 'psig', label: 'psig' }, { value: 'psia', label: 'psia' },
+            { value: 'bar', label: 'bar' }, { value: 'mbar', label: 'mbar' },
+            { value: 'inH2O', label: 'inH₂O' }, { value: 'ftH2O', label: 'ftH₂O' },
+            { value: 'inHg', label: 'inHg' }, { value: 'mmHg', label: 'mmHg' },
+            { value: 'atm', label: 'atm' }, { value: 'torr', label: 'torr' }, { value: 'psf', label: 'psf' }
+        ];
+        const RTD_UNITS = [
+            { value: '°C', label: '°C' }, { value: '°F', label: '°F' }, { value: 'K', label: 'K' }, { value: '°R', label: '°R' }
+        ];
+        
+        // Helper: unit and decimal places for sensor type (defaults; overridden by sensorUnits when user selects)
         function getSensorFormat(label) {
-            if (label.startsWith('LC')) return { unit: 'Lbs', decimals: 2 };
+            if (label.startsWith('LC')) return { unit: 'lbf', decimals: 2 };
             if (label.startsWith('PT')) return { unit: 'Pa', decimals: 2 };
             if (label.startsWith('RTD')) return { unit: '°C', decimals: 1 };
             return { unit: '', decimals: 1 };
         }
-        function getSensorUnit(label) {
-            return getSensorFormat(label).unit;
+        function getDisplayUnit(label) {
+            return sensorUnits[label] != null && sensorUnits[label] !== '' ? sensorUnits[label] : getSensorFormat(label).unit;
         }
         
         // DOM elements
@@ -558,31 +601,97 @@
             html += '</div>';
             html += '<div class="modal-section"><h3>Load cells</h3>';
             for (const [name, cfg] of Object.entries(data.load_cells)) {
+                const displayName = (cfg.display_name != null && cfg.display_name !== undefined) ? String(cfg.display_name) : '';
+                const unit = (cfg.unit != null && cfg.unit !== undefined) ? String(cfg.unit) : 'lbf';
+                const lcUnitOpts = LOAD_CELL_UNITS.map(u => `<option value="${u.value}" ${u.value === unit ? 'selected' : ''}>${u.label}</option>`).join('');
                 html += `<div class="settings-row">
                     <label>${name}</label>
+                    <label>Name <input type="text" class="display-name" id="lc_${name}_display_name" placeholder="e.g. Strain Gauge 1" value="${displayName.replace(/"/g, '&quot;')}"></label>
+                    <label>Unit <select class="unit-select" id="lc_${name}_unit">${lcUnitOpts}</select></label>
                     <label><input type="checkbox" id="lc_${name}_enabled" ${cfg.enabled ? 'checked' : ''}> Enabled</label>
                     <label>Sensitivity <input type="number" id="lc_${name}_sensitivity" step="0.001" value="${Number(cfg.sensitivity)}"></label>
                     <label>Max load <input type="number" id="lc_${name}_max_load" step="0.01" value="${Number(cfg.max_load)}"></label>
+                    <label>Offset <input type="number" id="lc_${name}_offset" step="0.01" value="${Number(cfg.offset ?? 0)}"></label>
                 </div>`;
             }
             html += '</div><div class="modal-section"><h3>Pressure transducers</h3>';
             for (const [name, cfg] of Object.entries(data.pressure_transducers)) {
+                const displayName = (cfg.display_name != null && cfg.display_name !== undefined) ? String(cfg.display_name) : '';
+                const unit = (cfg.unit != null && cfg.unit !== undefined) ? String(cfg.unit) : 'Pa';
+                const ptUnitOpts = PRESSURE_UNITS.map(u => `<option value="${u.value}" ${u.value === unit ? 'selected' : ''}>${u.label}</option>`).join('');
                 html += `<div class="settings-row">
                     <label>${name}</label>
+                    <label>Name <input type="text" class="display-name" id="pt_${name}_display_name" placeholder="e.g. Tank 1 Pressure" value="${displayName.replace(/"/g, '&quot;')}"></label>
+                    <label>Unit <select class="unit-select" id="pt_${name}_unit">${ptUnitOpts}</select></label>
                     <label><input type="checkbox" id="pt_${name}_enabled" ${cfg.enabled ? 'checked' : ''}> Enabled</label>
                     <label>P min <input type="number" id="pt_${name}_P_min" value="${Number(cfg.P_min)}"></label>
                     <label>P max <input type="number" id="pt_${name}_P_max" value="${Number(cfg.P_max)}"></label>
+                    <label>Offset <input type="number" id="pt_${name}_offset" step="0.01" value="${Number(cfg.offset ?? 0)}"></label>
                 </div>`;
             }
             html += '</div><div class="modal-section"><h3>RTDs</h3>';
             for (const [name, cfg] of Object.entries(data.rtds)) {
+                const displayName = (cfg.display_name != null && cfg.display_name !== undefined) ? String(cfg.display_name) : '';
+                const unit = (cfg.unit != null && cfg.unit !== undefined) ? String(cfg.unit) : '°C';
+                const rtdUnitOpts = RTD_UNITS.map(u => `<option value="${u.value}" ${u.value === unit ? 'selected' : ''}>${u.label}</option>`).join('');
                 html += `<div class="settings-row">
                     <label>${name}</label>
+                    <label>Name <input type="text" class="display-name" id="rtd_${name}_display_name" placeholder="e.g. Fuel Line 1 Temp" value="${displayName.replace(/"/g, '&quot;')}"></label>
+                    <label>Unit <select class="unit-select" id="rtd_${name}_unit">${rtdUnitOpts}</select></label>
                     <label><input type="checkbox" id="rtd_${name}_enabled" ${cfg.enabled ? 'checked' : ''}> Enabled</label>
+                    <label>Offset <input type="number" id="rtd_${name}_offset" step="0.01" value="${Number(cfg.offset ?? 0)}"></label>
                 </div>`;
             }
             html += '</div>';
             settingsFormContainer.innerHTML = html;
+            // Store units from settings so graph value display uses selected unit
+            for (const [name, cfg] of Object.entries(data.load_cells || {})) {
+                sensorUnits[name] = (cfg.unit != null && cfg.unit !== undefined) ? String(cfg.unit) : 'lbf';
+            }
+            for (const [name, cfg] of Object.entries(data.pressure_transducers || {})) {
+                sensorUnits[name] = (cfg.unit != null && cfg.unit !== undefined) ? String(cfg.unit) : 'Pa';
+            }
+            for (const [name, cfg] of Object.entries(data.rtds || {})) {
+                sensorUnits[name] = (cfg.unit != null && cfg.unit !== undefined) ? String(cfg.unit) : '°C';
+            }
+            // Update unit when user changes dropdown (no save needed for live display)
+            settingsFormContainer.querySelectorAll('select.unit-select').forEach((el) => {
+                el.addEventListener('change', () => {
+                    const m = el.id.match(/^(lc|pt|rtd)_(.+)_unit$/);
+                    if (m) sensorUnits[m[2]] = el.value;
+                    // Refresh value display if graph exists
+                    if (sensorLabels.length > 0) {
+                        sensorLabels.forEach((label) => {
+                            const val = sensorCurrentValues[label];
+                            const valueDisplay = document.getElementById(`value-${label}`);
+                            if (valueDisplay != null && val != null && !isNaN(val)) {
+                                const { decimals } = getSensorFormat(label);
+                                valueDisplay.textContent = `${val.toFixed(decimals)} ${getDisplayUnit(label)}`;
+                            }
+                        });
+                    }
+                });
+            });
+            // Store display names so graph titles show "ID: name" when set
+            sensorDisplayNames = {};
+            for (const [name, cfg] of Object.entries(data.load_cells || {})) {
+                sensorDisplayNames[name] = (cfg.display_name != null && cfg.display_name !== undefined) ? String(cfg.display_name).trim() : '';
+            }
+            for (const [name, cfg] of Object.entries(data.pressure_transducers || {})) {
+                sensorDisplayNames[name] = (cfg.display_name != null && cfg.display_name !== undefined) ? String(cfg.display_name).trim() : '';
+            }
+            for (const [name, cfg] of Object.entries(data.rtds || {})) {
+                sensorDisplayNames[name] = (cfg.display_name != null && cfg.display_name !== undefined) ? String(cfg.display_name).trim() : '';
+            }
+            // If graphs already exist, update their titles
+            if (sensorLabels.length > 0) {
+                sensorLabels.forEach((label) => {
+                    const titleEl = document.getElementById(`title-${label}`);
+                    if (titleEl && titleEl.firstChild) {
+                        titleEl.firstChild.textContent = sensorDisplayNames[label] ? `${label}: ${sensorDisplayNames[label]}` : label;
+                    }
+                });
+            }
             const slider = document.getElementById('adc_datarate_code');
             const valueSpan = document.getElementById('adc_datarate_value');
             if (slider && valueSpan) {
@@ -611,26 +720,34 @@
                 settle_discard: sdEl ? sdEl.checked : true
             };
             for (const el of document.querySelectorAll('[id^="lc_"]')) {
-                const m = el.id.match(/^lc_(.+)_(enabled|sensitivity|max_load)$/);
+                const m = el.id.match(/^lc_(.+)_(enabled|sensitivity|max_load|display_name|unit|offset)$/);
                 if (!m) continue;
                 const [, name, key] = m;
                 if (!load_cells[name]) load_cells[name] = {};
                 if (key === 'enabled') load_cells[name].enabled = el.checked;
+                else if (key === 'display_name') load_cells[name].display_name = (el.value && typeof el.value === 'string') ? el.value.trim() : '';
+                else if (key === 'unit') load_cells[name].unit = (el.value && typeof el.value === 'string') ? el.value.trim() : 'lbf';
                 else { const v = parseFloat(el.value); load_cells[name][key] = isNaN(v) ? 0 : v; }
             }
             for (const el of document.querySelectorAll('[id^="pt_"]')) {
-                const m = el.id.match(/^pt_(.+)_(enabled|P_min|P_max)$/);
+                const m = el.id.match(/^pt_(.+)_(enabled|P_min|P_max|display_name|unit|offset)$/);
                 if (!m) continue;
                 const [, name, key] = m;
                 if (!pressure_transducers[name]) pressure_transducers[name] = {};
                 if (key === 'enabled') pressure_transducers[name].enabled = el.checked;
+                else if (key === 'display_name') pressure_transducers[name].display_name = (el.value && typeof el.value === 'string') ? el.value.trim() : '';
+                else if (key === 'unit') pressure_transducers[name].unit = (el.value && typeof el.value === 'string') ? el.value.trim() : 'Pa';
                 else { const v = parseFloat(el.value); pressure_transducers[name][key] = isNaN(v) ? 0 : v; }
             }
             for (const el of document.querySelectorAll('[id^="rtd_"]')) {
-                const m = el.id.match(/^rtd_(.+)_enabled$/);
+                const m = el.id.match(/^rtd_(.+)_(enabled|display_name|unit|offset)$/);
                 if (!m) continue;
-                const [, name] = m;
-                rtds[name] = { enabled: el.checked };
+                const [, name, key] = m;
+                if (!rtds[name]) rtds[name] = {};
+                if (key === 'enabled') rtds[name].enabled = el.checked;
+                else if (key === 'display_name') rtds[name].display_name = (el.value && typeof el.value === 'string') ? el.value.trim() : '';
+                else if (key === 'unit') rtds[name].unit = (el.value && typeof el.value === 'string') ? el.value.trim() : '°C';
+                else { const v = parseFloat(el.value); rtds[name][key] = isNaN(v) ? 0 : v; }
             }
             return { adc, load_cells, pressure_transducers, rtds };
         }
@@ -869,8 +986,8 @@
                             sensorCurrentValues[label] = value;
                             const valueDisplay = document.getElementById(`value-${label}`);
                             if (valueDisplay) {
-                                const { unit, decimals } = getSensorFormat(label);
-                                valueDisplay.textContent = `${value.toFixed(decimals)} ${unit}`;
+                                const { decimals } = getSensorFormat(label);
+                                valueDisplay.textContent = `${value.toFixed(decimals)} ${getDisplayUnit(label)}`;
                                 // Set color to match graph line
                                 if (sensorColors[label]) {
                                     valueDisplay.style.color = sensorColors[label];
@@ -963,7 +1080,7 @@
                 title.className = 'text-white text-sm font-semibold mb-1 flex justify-between items-center';
                 title.id = `title-${label}`;
                 const titleText = document.createElement('span');
-                titleText.textContent = label;
+                titleText.textContent = sensorDisplayNames[label] ? `${label}: ${sensorDisplayNames[label]}` : label;
                 const valueDisplay = document.createElement('span');
                 valueDisplay.id = `value-${label}`;
                 valueDisplay.className = 'font-normal';

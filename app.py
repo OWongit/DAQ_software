@@ -78,12 +78,15 @@ def _validate_settings_payload(data):
             return None, f"Missing key: {key}"
         if not isinstance(data[key], dict):
             return None, f"{key} must be an object"
-    # Validate load_cells: enabled bool, sensitivity and max_load positive numbers
+    # Validate load_cells: enabled bool, sensitivity and max_load positive numbers, optional unit
     for name, cfg in data["load_cells"].items():
         if not isinstance(cfg, dict):
             return None, f"load_cells.{name} must be an object"
         if "enabled" in cfg and not isinstance(cfg["enabled"], bool):
             return None, f"load_cells.{name}.enabled must be boolean"
+        if "unit" in cfg:
+            if not isinstance(cfg["unit"], str) or cfg["unit"] not in config.LOAD_CELL_UNITS:
+                return None, f"load_cells.{name}.unit must be one of: {sorted(config.LOAD_CELL_UNITS)}"
         if "sensitivity" in cfg:
             try:
                 v = float(cfg["sensitivity"])
@@ -98,24 +101,45 @@ def _validate_settings_payload(data):
                     return None, f"load_cells.{name}.max_load must be non-negative"
             except (TypeError, ValueError):
                 return None, f"load_cells.{name}.max_load must be a number"
+        if "offset" in cfg:
+            try:
+                float(cfg["offset"])
+            except (TypeError, ValueError):
+                return None, f"load_cells.{name}.offset must be a number"
     # Validate pressure_transducers: enabled bool, P_min and P_max numbers
     for name, cfg in data["pressure_transducers"].items():
         if not isinstance(cfg, dict):
             return None, f"pressure_transducers.{name} must be an object"
         if "enabled" in cfg and not isinstance(cfg["enabled"], bool):
             return None, f"pressure_transducers.{name}.enabled must be boolean"
+        if "unit" in cfg:
+            if not isinstance(cfg["unit"], str) or cfg["unit"] not in config.PRESSURE_UNITS:
+                return None, f"pressure_transducers.{name}.unit must be one of: {sorted(config.PRESSURE_UNITS)}"
         for k in ("P_min", "P_max"):
             if k in cfg:
                 try:
                     float(cfg[k])
                 except (TypeError, ValueError):
                     return None, f"pressure_transducers.{name}.{k} must be a number"
+        if "offset" in cfg:
+            try:
+                float(cfg["offset"])
+            except (TypeError, ValueError):
+                return None, f"pressure_transducers.{name}.offset must be a number"
     # Validate rtds: enabled bool
     for name, cfg in data["rtds"].items():
         if not isinstance(cfg, dict):
             return None, f"rtds.{name} must be an object"
         if "enabled" in cfg and not isinstance(cfg["enabled"], bool):
             return None, f"rtds.{name}.enabled must be boolean"
+        if "unit" in cfg:
+            if not isinstance(cfg["unit"], str) or cfg["unit"] not in config.RTD_UNITS:
+                return None, f"rtds.{name}.unit must be one of: {sorted(config.RTD_UNITS)}"
+        if "offset" in cfg:
+            try:
+                float(cfg["offset"])
+            except (TypeError, ValueError):
+                return None, f"rtds.{name}.offset must be a number"
     # Validate optional adc: datarate_code 0-13, settle_discard bool
     if "adc" in data:
         adc = data["adc"]

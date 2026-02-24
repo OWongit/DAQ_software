@@ -17,19 +17,19 @@ ADC_SETTLE_DISCARD = True
 
 # Load Cell hardcoded values only (ADC, SIG+, SIG-, excitation_voltage)
 LOAD_CELLS_HARDCODE = {
-    "LC1": {"ADC": 1, "SIG+": 1, "SIG-": 0, "excitation_voltage": 10.0},
-    "LC2": {"ADC": 1, "SIG+": 11, "SIG-": 10, "excitation_voltage": 5.0},
-    "LC3": {"ADC": 1, "SIG+": 9, "SIG-": 8, "excitation_voltage": 5.0},
+    "LC1 (10V)": {"ADC": 1, "SIG+": 1, "SIG-": 0, "excitation_voltage": 10.0},
+    "LC2 (5V)": {"ADC": 1, "SIG+": 11, "SIG-": 10, "excitation_voltage": 5.0},
+    "LC3 (5V)": {"ADC": 1, "SIG+": 9, "SIG-": 8, "excitation_voltage": 5.0},
 }
 
 # Pressure Transducer hardcoded values only
 PRESSURE_TRANSDUCERS_HARDCODE = {
-    "PT1": {"ADC": 2, "SIG": 1, "excitation_voltage": 5.0, "V_max": 4.5, "V_min": 0.5, "V_span": 4.0},
-    "PT2": {"ADC": 2, "SIG": 0, "excitation_voltage": 5.0, "V_max": 4.5, "V_min": 0.5, "V_span": 4.0},
-    "PT3": {"ADC": 2, "SIG": 11, "excitation_voltage": 5.0, "V_max": 4.5, "V_min": 0.5, "V_span": 4.0},
-    "PT4": {"ADC": 2, "SIG": 10, "excitation_voltage": 5.0, "V_max": 4.5, "V_min": 0.5, "V_span": 4.0},
-    "PT5": {"ADC": 2, "SIG": 9, "excitation_voltage": 5.0, "V_max": 4.5, "V_min": 0.5, "V_span": 4.0},
-    "PT6": {"ADC": 2, "SIG": 8, "excitation_voltage": 5.0, "V_max": 4.5, "V_min": 0.5, "V_span": 4.0},
+    "PT1 (5V)": {"ADC": 2, "SIG": 1, "excitation_voltage": 5.0, "V_max": 4.5, "V_min": 0.5, "V_span": 4.0},
+    "PT2 (5V)": {"ADC": 2, "SIG": 0, "excitation_voltage": 5.0, "V_max": 4.5, "V_min": 0.5, "V_span": 4.0},
+    "PT3 (5V)": {"ADC": 2, "SIG": 11, "excitation_voltage": 5.0, "V_max": 4.5, "V_min": 0.5, "V_span": 4.0},
+    "PT4 (5V)": {"ADC": 2, "SIG": 10, "excitation_voltage": 5.0, "V_max": 4.5, "V_min": 0.5, "V_span": 4.0},
+    "PT5 (5V)": {"ADC": 2, "SIG": 9, "excitation_voltage": 5.0, "V_max": 4.5, "V_min": 0.5, "V_span": 4.0},
+    "PT6 (5V)": {"ADC": 2, "SIG": 8, "excitation_voltage": 5.0, "V_max": 4.5, "V_min": 0.5, "V_span": 4.0},
 }
 
 # RTD hardcoded values only
@@ -37,6 +37,11 @@ RTDS_HARDCODE = {
     "RTD1": {"ADC": 1, "L1": 4, "L2": 2},
     "RTD2": {"ADC": 2, "L1": 4, "L2": 2},
 }
+
+# Allowed unit values for settings validation (must match frontend unit options)
+LOAD_CELL_UNITS = {"lbf", "lb", "lbs", "N", "kN", "kgf", "oz", "ton", "tonne", "g"}
+PRESSURE_UNITS = {"Pa", "kPa", "MPa", "psi", "psig", "psia", "bar", "mbar", "inH2O", "ftH2O", "inHg", "mmHg", "atm", "torr", "psf"}
+RTD_UNITS = {"°C", "°F", "K", "°R"}
 
 # Merged config (hardcode + settings.json); set by load_settings()
 LOAD_CELLS = {}
