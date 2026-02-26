@@ -16,13 +16,14 @@ class Load_Cell:
         sensitivity (float): Sensitivity in mV/V (default: 0.020)
     """
 
-    def __init__(self, ADC, sig_plus_idx, sig_minus_idx, max_load, excitation_voltage=5.0, sensitivity=0.0020):
+    def __init__(self, ADC, sig_plus_idx, sig_minus_idx, max_load, excitation_voltage=5.0, sensitivity=0.0020, offset=0.0):
         self.ADC = ADC
         self.sig_plus_idx = sig_plus_idx
         self.sig_minus_idx = sig_minus_idx
         self.excitation_voltage = excitation_voltage
         self.sensitivity = sensitivity
         self.max_load = max_load
+        self.offset = float(offset)
 
     def read(self):
         sig_plus = self.ADC.read_voltage_single(self.sig_plus_idx, settle_discard=config.ADC_SETTLE_DISCARD)
@@ -62,7 +63,7 @@ class Load_Cell:
         # Example: 1.6 mV/V / 2.0 mV/V (sensitivity) = 0.8 (80% load)
         ratio = current_mv_per_v / self.sensitivity
 
-        return ratio * self.max_load
+        return (ratio * self.max_load) - self.offset
 
 
 class Pressure_Transducer:
@@ -79,7 +80,7 @@ class Pressure_Transducer:
         P_max (float): Maximum pressure (default: 100.0)
     """
 
-    def __init__(self, ADC, sig_idx, excitation_voltage=5.0, V_max=4.5, V_min=0.5, V_span=4.0, P_min=0.0, P_max=100.0):
+    def __init__(self, ADC, sig_idx, excitation_voltage=5.0, V_max=4.5, V_min=0.5, V_span=4.0, P_min=0.0, P_max=100.0, offset=0.0):
         self.ADC = ADC
         self.sig_idx = sig_idx
         self.excitation_voltage = excitation_voltage
@@ -88,6 +89,7 @@ class Pressure_Transducer:
         self.V_span = V_span
         self.P_min = P_min
         self.P_max = P_max
+        self.offset = float(offset)
 
     def read(self):
         sig_voltage = self.ADC.read_voltage_single(self.sig_idx, settle_discard=config.ADC_SETTLE_DISCARD)
@@ -118,7 +120,7 @@ class Pressure_Transducer:
         # Linear mapping
         pressure = (sig_voltage - self.V_min) * (pressure_range / self.V_span) + self.P_min
 
-        return pressure
+        return pressure - self.offset
 
 
 class RTD:
@@ -130,10 +132,11 @@ class RTD:
         V_lead2_idx (int): Voltage list index for lead 2
     """
 
-    def __init__(self, ADC, V_lead1_idx, V_lead2_idx):
+    def __init__(self, ADC, V_lead1_idx, V_lead2_idx, offset=0.0):
         self.ADC = ADC
         self.V_lead1_idx = V_lead1_idx
         self.V_lead2_idx = V_lead2_idx
+        self.offset = float(offset)
         # TODO: configure IDAC and reference for RTD using ADC driver'
         # TODO: CANNOT USE MULTIPLE ADC REFERENCES. IF USING AN RTD, EVERY OTHER INPUT CHANNEL WILL USE THE SAME RTD REFERENCE.
         # TODO: PERHAPS CAN TIME MULTIPLEX THE RTD REFERENCE/MAIN REFERENCE SO WE CAN READ RTDs AT THE SAME TIME AS OTHER SENSORS?
@@ -159,7 +162,7 @@ class RTD:
             float: Calculated temperature
         """
         # TODO: Implement temperature calculation
-        return 0.0
+        return 0.0 - self.offset
 
 
 def _adc_for_cfg(cfg, adc1, adc2):
@@ -185,6 +188,7 @@ def initialize_sensors(adc1, adc2):
                 max_load=cfg["max_load"],
                 excitation_voltage=cfg["excitation_voltage"],
                 sensitivity=cfg["sensitivity"],
+                offset=float(cfg.get("offset", 0)),
             )
             load_cells.append((name, sensor))
             sensor_labels.append(name)
@@ -203,6 +207,7 @@ def initialize_sensors(adc1, adc2):
                 V_span=cfg["V_span"],
                 P_min=cfg["P_min"],
                 P_max=cfg["P_max"],
+                offset=float(cfg.get("offset", 0)),
             )
             pressure_transducers.append((name, sensor))
             sensor_labels.append(name)
@@ -216,7 +221,7 @@ def initialize_sensors(adc1, adc2):
                 ADC=selected_adc,
                 V_lead1_idx=cfg["L1"],
                 V_lead2_idx=cfg["L2"],
-                #   adc=adc
+                offset=float(cfg.get("offset", 0)),
             )
             rtds.append((name, sensor))
             sensor_labels.append(name)
