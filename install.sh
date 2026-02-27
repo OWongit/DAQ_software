@@ -57,7 +57,9 @@ fi
 # Create data directory if it doesn't exist
 mkdir -p "$SCRIPT_DIR/data"
 
-# Make launcher executable
+# Fix line endings and make launcher executable
+echo "  Preparing launcher script..."
+sed -i 's/\r$//' "$SCRIPT_DIR/launcher.sh"
 chmod +x "$SCRIPT_DIR/launcher.sh"
 
 # Install systemd service for auto-start on boot
