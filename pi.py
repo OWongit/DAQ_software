@@ -113,3 +113,12 @@ def reboot_pi():
     except Exception:
         # If reboot fails, just return; caller can decide how to surface errors.
         return
+
+def shutdown_pi():
+    """Shutdown the Raspberry Pi (requires appropriate system permissions)."""
+    try:
+        # This command typically requires passwordless sudo for the running user.
+        subprocess.run(["sudo", "shutdown", "now"], check=False)
+    except Exception:
+        # If shutdown fails, just return; caller can decide how to surface errors.
+        return

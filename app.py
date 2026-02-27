@@ -251,6 +251,26 @@ def api_reboot():
     return jsonify({"status": "rebooting"})
 
 
+@app.route("/api/shutdown", methods=["POST"])
+def api_shutdown():
+    """Shut down the Raspberry Pi after user types 'shutdown' to confirm."""
+    try:
+        data = request.get_json(force=True)
+    except Exception:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    confirmation = data.get("password") if isinstance(data, dict) else None
+    if not isinstance(confirmation, str) or confirmation.strip().lower() != "shutdown":
+        return jsonify({"error": "Type 'shutdown' to confirm."}), 403
+
+    try:
+        pi.shutdown_pi()
+    except Exception as exc:
+        return jsonify({"error": f"Failed to initiate shutdown: {exc}"}), 500
+
+    return jsonify({"status": "shutting_down"})
+
+
 @socketio.on("connect")
 def handle_connect():
     """Handle client connections."""

@@ -391,11 +391,21 @@
             font-size: 12px;
             cursor: pointer;
             border: none;
-            background-color: #b91c1c;
-            color: #fee2e2;
             font-weight: 600;
         }
-        .modal-reboot button:hover {
+        #settings-reboot {
+            background-color: #fbbf24;
+            color: #000;
+        }
+        #settings-reboot:hover {
+            background-color: #f59e0b;
+            box-shadow: 0 0 14px rgba(251, 191, 36, 0.6);
+        }
+        #settings-shutdown {
+            background-color: #b91c1c;
+            color: #fee2e2;
+        }
+        #settings-shutdown:hover {
             background-color: #dc2626;
             box-shadow: 0 0 14px rgba(248, 113, 113, 0.6);
         }
@@ -667,12 +677,15 @@
                 <span class="config-upload-warning">WARNING: UPLOADING A CONFIG FILE WILL APPLY SETTINGS AND CREATE A NEW CSV DATA LOG FILE.</span>
             </div>
             <div id="settings-form-container"></div>
+            <div style="text-align: right;">
+                <span class="settings-warning">WARNING: APPLYING SETTINGS WILL CREATE A NEW CSV DATA LOG FILE.</span>
+            </div>
             <div class="modal-actions">
                 <div class="modal-reboot">
-                    <button id="settings-reboot">Reboot Raspberry Pi</button>
+                    <button id="settings-reboot">REBOOT</button>
+                    <button id="settings-shutdown">SHUTDOWN</button>
                 </div>
-                <div style="text-align: right;">
-                    <span class="settings-warning">WARNING: APPLYING SETTINGS WILL CREATE A NEW CSV DATA LOG FILE.</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
                     <span id="settings-saved-msg" class="settings-saved-msg">Saved. Restarting...</span>
                     <button id="settings-cancel" class="btn-cancel">Cancel</button>
                     <button id="settings-save" class="btn-save">Save and RESTART</button>
@@ -795,6 +808,7 @@
         const settingsCancelBtn = document.getElementById('settings-cancel');
         const settingsSavedMsg = document.getElementById('settings-saved-msg');
         const settingsRebootBtn = document.getElementById('settings-reboot');
+        const settingsShutdownBtn = document.getElementById('settings-shutdown');
         const noDisplaysMessage = document.getElementById('no-displays-message');
 
         function setNoDisplaysVisible(on) {
@@ -1185,6 +1199,34 @@
                 } catch (e) {
                     console.error('Reboot error:', e);
                     alert('Failed to initiate reboot');
+                }
+            });
+        }
+
+        if (settingsShutdownBtn) {
+            settingsShutdownBtn.addEventListener('click', async () => {
+                const sure = window.confirm('Are you sure you want to shut down the Raspberry Pi? This will interrupt data acquisition.');
+                if (!sure) return;
+                const confirmation = window.prompt('Type "shutdown" to shut down the Raspberry Pi');
+                if (confirmation === null || confirmation === '') {
+                    alert('Shutdown cancelled.');
+                    return;
+                }
+                try {
+                    const res = await fetch('/api/shutdown', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: confirmation })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (res.ok) {
+                        alert('Shutdown command sent. The Raspberry Pi will power off shortly.');
+                    } else {
+                        alert(data.error || 'Failed to initiate shutdown');
+                    }
+                } catch (e) {
+                    console.error('Shutdown error:', e);
+                    alert('Failed to initiate shutdown');
                 }
             });
         }
