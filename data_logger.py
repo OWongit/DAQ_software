@@ -1,7 +1,7 @@
 import csv
 import os
 import datetime
-from . import config
+import config
 
 
 class DataLogger:

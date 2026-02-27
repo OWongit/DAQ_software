@@ -1,13 +1,14 @@
 import os
+import time
 import threading
 from datetime import datetime
 
-from src.adc import ADS124S08
-from src.data_logger import DataLogger
-from src import sensors
-from src import config
-from src.app import get_socketio, set_current_logger, get_restart_requested_event
-from src.pi import get_system_info
+from adc import ADS124S08
+from data_logger import DataLogger
+import sensors
+import config
+from app import get_socketio, set_current_logger, get_restart_requested_event
+from pi import get_system_info
 
 
 def main():
@@ -96,7 +97,7 @@ def main():
 
 if __name__ == "__main__":
     # Import app here to avoid circular import
-    from src.app import app
+    from app import app
 
     # Start Flask-SocketIO server in a separate thread
     socketio = get_socketio()
@@ -105,6 +106,8 @@ if __name__ == "__main__":
     # disable the reloader (and effectively disable debug mode here).
     server_thread = threading.Thread(target=lambda: socketio.run(app, host="0.0.0.0", port=5000, debug=False, use_reloader=False, allow_unsafe_werkzeug=True), daemon=True)
     server_thread.start()
+
+    time.sleep(3)
 
     # Run main data acquisition loop; re-run on restart request
     while True:
