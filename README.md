@@ -53,22 +53,21 @@ journalctl -u daq -f           # Watch live log output
 
 ```
 DAQ_software/
-├── main.py                # Entry point — acquisition loop and server startup
-├── src/                   # Core Python package
-│   ├── __init__.py
-│   ├── adc.py             # ADS124S08 SPI driver
-│   ├── app.py             # Flask-SocketIO web server and API routes
-│   ├── config.py          # Sensor and ADC configuration (hardcoded + in-memory)
-│   ├── data_logger.py     # CSV logging
-│   ├── pi.py              # Raspberry Pi system info and reboot
-│   └── sensors.py         # Sensor classes and initialization
+├── main.py            # Entry point — acquisition loop and server startup
+├── app.py             # Flask-SocketIO web server and API routes
+├── config.py          # Sensor and ADC configuration (hardcoded + in-memory)
+├── sensors.py         # Sensor classes and initialization
+├── ADC.py             # ADS124S08 SPI driver
+├── data_logger.py     # CSV logging
+├── pi.py              # Raspberry Pi system info and reboot
+├── settings.json      # Reference config file (not used at runtime)
+├── install.sh         # Installation script
+├── launcher.sh        # Launch script used by systemd service
+├── requirements.txt   # Python dependencies
 ├── static/
-│   └── index.html         # Web GUI (single-page app)
-├── images/                # Favicon, logos
-├── data/                  # CSV log files (created at runtime)
-├── install.sh             # Installation script
-├── launcher.sh            # Launch script used by systemd service
-└── requirements.txt       # Python dependencies
+│   └── index.html     # Web GUI (single-page app)
+├── images/            # Favicon, logos
+└── data/              # CSV log files (created at runtime)
 ```
 
 ## License

@@ -2,7 +2,7 @@
 Sensor classes for converting analog voltage readings to physical values.
 """
 
-from . import config
+import config
 
 
 class Load_Cell:

@@ -10,15 +10,14 @@ from pathlib import Path
 from flask import Flask, send_from_directory, jsonify, request, Response
 from flask_socketio import SocketIO, emit
 
-from . import config
-from . import pi
+import config
+import pi
 
 _script_dir = os.path.dirname(os.path.abspath(__file__))
-_project_dir = os.path.dirname(_script_dir)
-_data_dir = os.path.join(_project_dir, "data")
-_images_dir = os.path.join(_project_dir, "images")
+_data_dir = os.path.join(_script_dir, "data")
+_images_dir = os.path.join(_script_dir, "images")
 
-app = Flask(__name__, static_folder=os.path.join(_project_dir, "static"))
+app = Flask(__name__, static_folder="static")
 app.config["SECRET_KEY"] = "daq-secret-key"
 socketio = SocketIO(app, cors_allowed_origins="*")
 
