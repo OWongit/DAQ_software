@@ -14,7 +14,7 @@ Reads load cells, pressure transducers, and RTDs via dual ADS124S08 ADCs over SP
 - ADC data rate and settle-discard control
 - CSV data logging with per-session files
 - System info display (CPU temp, RAM, disk)
-- Remote Raspberry Pi reboot from the web UI
+- Remote Raspberry Pi reboot and shutdown from the web UI
 
 ## Installation
 
