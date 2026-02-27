@@ -5,22 +5,20 @@ Flask-SocketIO server for real-time sensor data visualization.
 import json
 import os
 import threading
-from flask import Flask, send_from_directory, jsonify, request
+from datetime import datetime
+from pathlib import Path
+from flask import Flask, send_from_directory, jsonify, request, Response
 from flask_socketio import SocketIO, emit
 
-import config
-
-#TODO: add rename feature in the settings. (displays )
-#TODO: note that LC1 is 10V power, LC2 and LC3 are 5V power.
-#TODO: Add offset setting
-#TODO: Add unit selection N, Lb, KG setting
-
+from . import config
+from . import pi
 
 _script_dir = os.path.dirname(os.path.abspath(__file__))
-_data_dir = os.path.join(_script_dir, "data")
-_images_dir = os.path.join(_script_dir, "images")
+_project_dir = os.path.dirname(_script_dir)
+_data_dir = os.path.join(_project_dir, "data")
+_images_dir = os.path.join(_project_dir, "images")
 
-app = Flask(__name__, static_folder="static")
+app = Flask(__name__, static_folder=os.path.join(_project_dir, "static"))
 app.config["SECRET_KEY"] = "daq-secret-key"
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -63,6 +61,21 @@ def download_file(filename):
     return send_from_directory(_data_dir, filename, as_attachment=True)
 
 
+@app.route("/api/data-files")
+def get_data_files():
+    """Return list of CSV filenames in data dir (newest first) and current session file."""
+    global current_logger
+    current = None
+    if current_logger:
+        current = current_logger.get_filename()
+    path = Path(_data_dir)
+    if not path.is_dir():
+        return jsonify({"files": [], "current": current})
+    files = [f.name for f in path.glob("*.csv") if f.is_file()]
+    files.sort(key=lambda n: path.joinpath(n).stat().st_mtime, reverse=True)
+    return jsonify({"files": files, "current": current})
+
+
 @app.route("/images/<path:filename>")
 def serve_image(filename):
     """Serve images (favicon, logo, etc.) from the images folder."""
@@ -72,7 +85,9 @@ def serve_image(filename):
 @app.route("/api/settings", methods=["GET"])
 def get_settings():
     """Return current sensor settings (editable fields only) for the UI."""
-    return jsonify(config.get_editable_settings())
+    data = config.get_editable_settings()
+    data["config_file_name"] = config.get_config_file_name()
+    return jsonify(data)
 
 
 def _validate_settings_payload(data):
@@ -165,7 +180,7 @@ def _validate_settings_payload(data):
 
 @app.route("/api/settings", methods=["POST"])
 def post_settings():
-    """Save sensor settings (editable fields only) to settings.json."""
+    """Apply sensor settings in memory and trigger a restart."""
     try:
         data = request.get_json(force=True)
     except Exception:
@@ -173,14 +188,68 @@ def post_settings():
     payload, err = _validate_settings_payload(data)
     if err:
         return jsonify({"error": err}), 400
-    path = config.get_settings_path()
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2)
-    except OSError as e:
-        return jsonify({"error": f"Failed to write settings: {e}"}), 500
+    config.load_settings(data=payload)
     request_restart()
     return jsonify({"status": "saved"})
+
+
+@app.route("/api/upload-config", methods=["POST"])
+def upload_config():
+    """Accept a JSON config upload, apply it in memory, and trigger a restart."""
+    try:
+        data = request.get_json(force=True)
+    except Exception:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    payload = data.get("settings")
+    filename = data.get("filename", "uploaded_config.json")
+    if payload is None:
+        return jsonify({"error": "Missing 'settings' key"}), 400
+
+    payload, err = _validate_settings_payload(payload)
+    if err:
+        return jsonify({"error": err}), 400
+
+    config.load_settings(data=payload)
+    config.set_config_file_name(filename)
+    request_restart()
+    return jsonify({"status": "uploaded", "filename": filename})
+
+
+@app.route("/api/download-config")
+def download_config():
+    """Return current in-memory settings as a downloadable JSON file."""
+    settings = config.get_editable_settings()
+    settings.pop("config_file_name", None)
+    stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    fname = f"DAQ_config_file_{stamp}.json"
+    body = json.dumps(settings, indent=2)
+    return Response(
+        body,
+        mimetype="application/json",
+        headers={"Content-Disposition": f"attachment; filename={fname}"},
+    )
+
+
+@app.route("/api/reboot", methods=["POST"])
+def api_reboot():
+    """Reboot the Raspberry Pi after user types 'reboot' to confirm."""
+    try:
+        data = request.get_json(force=True)
+    except Exception:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    confirmation = data.get("password") if isinstance(data, dict) else None
+    if not isinstance(confirmation, str) or confirmation.strip().lower() != "reboot":
+        return jsonify({"error": "Type 'reboot' to confirm."}), 403
+
+    # Trigger reboot; if this fails, an exception will be raised or the system simply will not reboot.
+    try:
+        pi.reboot_pi()
+    except Exception as exc:  # pragma: no cover - defensive
+        return jsonify({"error": f"Failed to initiate reboot: {exc}"}), 500
+
+    return jsonify({"status": "rebooting"})
 
 
 @socketio.on("connect")

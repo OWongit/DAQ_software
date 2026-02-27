@@ -1,0 +1,96 @@
+{
+  "adc": {
+    "datarate_code": 7,
+    "settle_discard": true
+  },
+  "load_cells": {
+    "LC1 (10V)": {
+      "display_name": "Thrust",
+      "unit": "N",
+      "enabled": true,
+      "sensitivity": 0.02,
+      "max_load": 1000,
+      "offset": 0
+    },
+    "LC2 (5V)": {
+      "display_name": "",
+      "unit": "N",
+      "enabled": false,
+      "sensitivity": 0.02,
+      "max_load": 200,
+      "offset": 0
+    },
+    "LC3 (5V)": {
+      "display_name": "",
+      "unit": "N",
+      "enabled": false,
+      "sensitivity": 0.02,
+      "max_load": 200,
+      "offset": 0
+    }
+  },
+  "pressure_transducers": {
+    "PT1": {
+      "display_name": "Tank Pressure",
+      "unit": "psi",
+      "enabled": true,
+      "P_min": 0,
+      "P_max": 2000,
+      "offset": 0
+    },
+    "PT2": {
+      "display_name": "",
+      "unit": "psi",
+      "enabled": false,
+      "P_min": 0,
+      "P_max": 2000,
+      "offset": 0
+    },
+    "PT3": {
+      "display_name": "",
+      "unit": "psi",
+      "enabled": false,
+      "P_min": 0,
+      "P_max": 2000,
+      "offset": 0
+    },
+    "PT4": {
+      "display_name": "",
+      "unit": "psi",
+      "enabled": false,
+      "P_min": 0,
+      "P_max": 2000,
+      "offset": 0
+    },
+    "PT5": {
+      "display_name": "",
+      "unit": "psi",
+      "enabled": false,
+      "P_min": 0,
+      "P_max": 2000,
+      "offset": 0
+    },
+    "PT6": {
+      "display_name": "",
+      "unit": "psi",
+      "enabled": false,
+      "P_min": 0,
+      "P_max": 2000,
+      "offset": 0
+    }
+  },
+  "rtds": {
+    "RTD1": {
+      "display_name": "",
+      "unit": "\u00b0C",
+      "enabled": false,
+      "offset": 0
+    },
+    "RTD2": {
+      "display_name": "",
+      "unit": "\u00b0C",
+      "enabled": false,
+      "offset": 0
+    }
+  }
+}

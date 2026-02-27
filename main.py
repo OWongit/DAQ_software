@@ -2,12 +2,12 @@ import os
 import threading
 from datetime import datetime
 
-from ADC import ADS124S08
-from data_logger import DataLogger
-import sensors
-import config
-from app import get_socketio, set_current_logger, get_restart_requested_event
-from pi_info import get_system_info
+from src.adc import ADS124S08
+from src.data_logger import DataLogger
+from src import sensors
+from src import config
+from src.app import get_socketio, set_current_logger, get_restart_requested_event
+from src.pi import get_system_info
 
 
 def main():
@@ -96,7 +96,7 @@ def main():
 
 if __name__ == "__main__":
     # Import app here to avoid circular import
-    from app import app
+    from src.app import app
 
     # Start Flask-SocketIO server in a separate thread
     socketio = get_socketio()
