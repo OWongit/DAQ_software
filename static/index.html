@@ -6,11 +6,11 @@
     <title>DAQ Monitor</title>
     <link rel="icon" href="/images/favicon.png" type="image/png">
     <!-- Tailwind CSS for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/vendor/tailwind.js"></script>
     <!-- Smoothie.js for real-time graphs -->
-    <script src="https://cdn.jsdelivr.net/npm/smoothie@1.36.0/smoothie.min.js"></script>
+    <script src="/static/vendor/smoothie.min.js"></script>
     <!-- Socket.IO client -->
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/vendor/socket.io.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -81,6 +81,82 @@
         .download-button:disabled {
             background-color: #9ca3af;
             cursor: not-allowed;
+        }
+        .download-dropdown-wrap {
+            position: relative;
+        }
+        .download-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            min-width: 260px;
+            max-width: 360px;
+            max-height: 320px;
+            overflow-y: auto;
+            background-color: rgba(20, 20, 20, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 1100;
+        }
+        .download-dropdown.open {
+            display: block;
+        }
+        .download-dropdown-title {
+            padding: 10px 12px;
+            color: #e5e7eb;
+            font-size: 12px;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .download-dropdown-list {
+            padding: 6px 0;
+        }
+        .download-dropdown-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 12px;
+            color: #d1d5db;
+            font-size: 11px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .download-dropdown-item:last-child {
+            border-bottom: none;
+        }
+        .download-dropdown-item .filename {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .download-dropdown-item .current-badge {
+            flex-shrink: 0;
+            color: #22c55e;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .download-dropdown-item button {
+            flex-shrink: 0;
+            padding: 4px 10px;
+            font-size: 11px;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .download-dropdown-item button:hover {
+            background-color: #2563eb;
+        }
+        .download-dropdown-empty {
+            padding: 16px 12px;
+            color: #9ca3af;
+            font-size: 12px;
         }
         .system-info {
             position: fixed;
@@ -259,8 +335,9 @@
         .modal-actions {
             display: flex;
             gap: 10px;
-            margin-top: 20px;
-            justify-content: flex-end;
+            margin-top: 7px;
+            justify-content: space-between;
+            align-items: center;
         }
         .modal-actions button {
             padding: 8px 16px;
@@ -294,11 +371,33 @@
         .settings-saved-msg.show {
             display: inline;
         }
-        .settings-note {
-            color: #9ca3af;
-            font-size: 11px;
-            margin-top: 8px;
+        .settings-warning {
             display: block;
+            color: #fbbf24;
+            font-size: 11px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .modal-reboot {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 10px;
+        }
+        .modal-reboot button {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            border: none;
+            background-color: #b91c1c;
+            color: #fee2e2;
+            font-weight: 600;
+        }
+        .modal-reboot button:hover {
+            background-color: #dc2626;
+            box-shadow: 0 0 14px rgba(248, 113, 113, 0.6);
         }
         .adc-slider-row {
             display: flex;
@@ -402,6 +501,72 @@
             font-weight: 500;
             font-variant-numeric: tabular-nums;
         }
+        .config-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 18px;
+            padding: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            background: #111;
+        }
+        .config-section-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .config-file-label {
+            color: #9ca3af;
+            font-size: 12px;
+        }
+        .config-file-name {
+            color: #60a5fa;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        .config-upload-btn,
+        .config-download-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.2s;
+        }
+        .config-upload-btn {
+            background-color: #6366f1;
+            color: white;
+        }
+        .config-upload-btn:hover {
+            background-color: #818cf8;
+        }
+        .config-download-btn {
+            background-color: #0d9488;
+            color: white;
+        }
+        .config-download-btn:hover {
+            background-color: #14b8a6;
+        }
+        .config-upload-warning {
+            color: #fbbf24;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .no-displays-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #e5e7eb;
+            font-size: 11px;
+            font-weight: 500;
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -472,28 +637,55 @@
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
         </button>
-        <button id="download-button" class="download-button" disabled>
-            Download CSV
-        </button>
+        <div class="download-dropdown-wrap">
+            <button id="download-button" class="download-button" type="button">
+                Download CSV
+            </button>
+            <div id="download-dropdown" class="download-dropdown" aria-hidden="true">
+                <div class="download-dropdown-title">CSV data files</div>
+                <div id="download-dropdown-list" class="download-dropdown-list"></div>
+                <div id="download-dropdown-empty" class="download-dropdown-empty" style="display: none;">No CSV files yet.</div>
+            </div>
+        </div>
     </div>
 
     <!-- Settings modal -->
     <div id="settings-modal" class="modal-overlay" aria-hidden="true">
         <div class="modal-box">
             <h2>Settings</h2>
-            <p class="modal-intro">Changes take effect after app restart. Values are saved across sessions.</p>
+            <p class="modal-intro">Settings are kept in memory only and are not saved across reboots. Upload a config file or set values manually each session.</p>
+            <div class="config-section">
+                <div class="config-section-row">
+                    <span class="config-file-label">Current config:</span>
+                    <span id="config-file-name" class="config-file-name">defaults</span>
+                </div>
+                <div class="config-section-row">
+                    <button type="button" id="config-upload-btn" class="config-upload-btn">Upload config file</button>
+                    <input type="file" id="config-upload-input" accept=".json" style="display:none">
+                    <button type="button" id="config-download-btn" class="config-download-btn">Download current config</button>
+                </div>
+                <span class="config-upload-warning">WARNING: UPLOADING A CONFIG FILE WILL APPLY SETTINGS AND CREATE A NEW CSV DATA LOG FILE.</span>
+            </div>
             <div id="settings-form-container"></div>
-            <span id="settings-csv-note" class="settings-note">ANOTHER SENSOR DATA CSV FILE WILL BE CREATED UPON RESTART</span>
             <div class="modal-actions">
-                <span id="settings-saved-msg" class="settings-saved-msg">Saved. Restarting...</span>
-                <button id="settings-cancel" class="btn-cancel">Cancel</button>
-                <button id="settings-save" class="btn-save">Save and RESTART</button>
+                <div class="modal-reboot">
+                    <button id="settings-reboot">Reboot Raspberry Pi</button>
+                </div>
+                <div style="text-align: right;">
+                    <span class="settings-warning">WARNING: APPLYING SETTINGS WILL CREATE A NEW CSV DATA LOG FILE.</span>
+                    <span id="settings-saved-msg" class="settings-saved-msg">Saved. Restarting...</span>
+                    <button id="settings-cancel" class="btn-cancel">Cancel</button>
+                    <button id="settings-save" class="btn-save">Save and RESTART</button>
+                </div>
             </div>
         </div>
     </div>
     
     <!-- Graph Grid Container -->
     <div id="graphs-container" class="w-full h-screen grid gap-2 p-2" style="grid-auto-rows: 1fr; overflow: hidden; box-sizing: border-box; padding-top: 50px; padding-bottom: 40px;"></div>
+    <div id="no-displays-message" class="no-displays-message" style="display: none;">
+        No active displays. Enable via Settings.
+    </div>
 
     <!-- Bottom bar -->
     <div class="bottom-bar">
@@ -538,28 +730,47 @@
         let sensorMinMax = {};
         let sensorCurrentValues = {}; // Store current values for display
         let sensorColors = {}; // Store line color for each sensor
-        let currentFileName = null;
         let sensorLabels = [];
         let sensorDisplayNames = {}; // Display names from settings (e.g. LC1 -> "Strain Gauge 1")
         let sensorUnits = {}; // Selected unit per sensor (e.g. LC1 -> "lbf"); falls back to getSensorFormat().unit
+
+        // ADS124S08 nominal data rates for DATARATE_CODE 0–13 (Hz)
+        const ADC_DATARATE_SPS = {
+            0: 2.5,
+            1: 5,
+            2: 10,
+            3: 16.6,
+            4: 20,
+            5: 50,
+            6: 60,
+            7: 100,
+            8: 200,
+            9: 400,
+            10: 800,
+            11: 1000,
+            12: 2000,
+            13: 4000
+        };
         
-        // Unit options typically found on sensor data sheets
+        // Unit options (must match backend config.LOAD_CELL_UNITS / PRESSURE_UNITS / RTD_UNITS)
         const LOAD_CELL_UNITS = [
-            { value: 'lbf', label: 'lbf' }, { value: 'lb', label: 'lb' }, { value: 'lbs', label: 'lbs' },
-            { value: 'N', label: 'N' }, { value: 'kN', label: 'kN' }, { value: 'kgf', label: 'kgf' },
-            { value: 'oz', label: 'oz' }, { value: 'ton', label: 'ton (US)' }, { value: 'tonne', label: 'tonne' },
-            { value: 'g', label: 'g' }
+            { value: 'N', label: 'N' },
+            { value: 'kN', label: 'kN' },
+            { value: 'lbf', label: 'lbf' },
+            { value: 'gf', label: 'gf' },
+            { value: 'kgf', label: 'kgf' }
         ];
         const PRESSURE_UNITS = [
-            { value: 'Pa', label: 'Pa' }, { value: 'kPa', label: 'kPa' }, { value: 'MPa', label: 'MPa' },
-            { value: 'psi', label: 'psi' }, { value: 'psig', label: 'psig' }, { value: 'psia', label: 'psia' },
-            { value: 'bar', label: 'bar' }, { value: 'mbar', label: 'mbar' },
-            { value: 'inH2O', label: 'inH₂O' }, { value: 'ftH2O', label: 'ftH₂O' },
-            { value: 'inHg', label: 'inHg' }, { value: 'mmHg', label: 'mmHg' },
-            { value: 'atm', label: 'atm' }, { value: 'torr', label: 'torr' }, { value: 'psf', label: 'psf' }
+            { value: 'psi', label: 'psi' },
+            { value: 'Pa', label: 'Pa' },
+            { value: 'kPa', label: 'kPa' },
+            { value: 'bar', label: 'bar' },
+            { value: 'mbar', label: 'mbar' }
         ];
         const RTD_UNITS = [
-            { value: '°C', label: '°C' }, { value: '°F', label: '°F' }, { value: 'K', label: 'K' }, { value: '°R', label: '°R' }
+            { value: '°C', label: '°C' },
+            { value: '°F', label: '°F' },
+            { value: 'K', label: 'K' }
         ];
         
         // Helper: unit and decimal places for sensor type (defaults; overridden by sensorUnits when user selects)
@@ -583,20 +794,42 @@
         const settingsSaveBtn = document.getElementById('settings-save');
         const settingsCancelBtn = document.getElementById('settings-cancel');
         const settingsSavedMsg = document.getElementById('settings-saved-msg');
+        const settingsRebootBtn = document.getElementById('settings-reboot');
+        const noDisplaysMessage = document.getElementById('no-displays-message');
+
+        function setNoDisplaysVisible(on) {
+            if (!noDisplaysMessage) return;
+            noDisplaysMessage.style.display = on ? 'block' : 'none';
+        }
 
         // Build settings form from API data and inject into container
         function buildSettingsForm(data) {
             if (!data || !data.load_cells || !data.pressure_transducers || !data.rtds) return;
             const adc = data.adc || { datarate_code: 10, settle_discard: true };
             const dr = Math.min(13, Math.max(0, parseInt(adc.datarate_code, 10) || 10));
-            const sd = !!adc.settle_discard;
+            const sdInitial = !!adc.settle_discard;
+
             let html = '';
+
+            // Determine how many sensors are enabled in settings
+            let enabledCountFromSettings = 0;
+            for (const cfg of Object.values(data.load_cells || {})) {
+                if (cfg && cfg.enabled) enabledCountFromSettings += 1;
+            }
+            for (const cfg of Object.values(data.pressure_transducers || {})) {
+                if (cfg && cfg.enabled) enabledCountFromSettings += 1;
+            }
+            for (const cfg of Object.values(data.rtds || {})) {
+                if (cfg && cfg.enabled) enabledCountFromSettings += 1;
+            }
+            setNoDisplaysVisible(enabledCountFromSettings === 0);
             html += '<div class="modal-section"><h3>ADC</h3>';
             html += '<div class="adc-slider-row"><label>Data rate (0–13)</label><input type="range" id="adc_datarate_code" min="0" max="13" value="' + dr + '"><span id="adc_datarate_value">' + dr + '</span></div>';
+            html += '<p id="adc_rate_summary" class="settings-explanation"></p>';
             html += '<p class="settings-explanation">ADS124S08 data rate / filter. Higher = faster, noisier; lower = slower, quieter. 0=slow, 13=fastest.</p>';
             html += '<div class="adc-slider-row"><label>Settle discard</label>';
-            html += '<input type="checkbox" id="adc_settle_discard" ' + (sd ? 'checked' : '') + ' style="display:none">';
-            html += '<button type="button" id="adc_settle_discard_btn" class="settle-discard-toggle ' + (sd ? 'enabled' : 'disabled') + '">Enabled</button></div>';
+            html += '<input type="checkbox" id="adc_settle_discard" ' + (sdInitial ? 'checked' : '') + ' style="display:none">';
+            html += '<button type="button" id="adc_settle_discard_btn" class="settle-discard-toggle ' + (sdInitial ? 'enabled' : 'disabled') + '">Enabled</button></div>';
             html += '<p class="settings-explanation">When enabled, discard one conversion per channel read for more stable readings (slower). When disabled, use one conversion per read (faster, may have small step response).</p>';
             html += '</div>';
             html += '<div class="modal-section"><h3>Load cells</h3>';
@@ -606,7 +839,7 @@
                 const lcUnitOpts = LOAD_CELL_UNITS.map(u => `<option value="${u.value}" ${u.value === unit ? 'selected' : ''}>${u.label}</option>`).join('');
                 html += `<div class="settings-row">
                     <label>${name}</label>
-                    <label>Name <input type="text" class="display-name" id="lc_${name}_display_name" placeholder="e.g. Strain Gauge 1" value="${displayName.replace(/"/g, '&quot;')}"></label>
+                    <label>Label <input type="text" class="display-name" id="lc_${name}_display_name" value="${displayName.replace(/"/g, '&quot;')}"></label>
                     <label>Unit <select class="unit-select" id="lc_${name}_unit">${lcUnitOpts}</select></label>
                     <label><input type="checkbox" id="lc_${name}_enabled" ${cfg.enabled ? 'checked' : ''}> Enabled</label>
                     <label>Sensitivity <input type="number" id="lc_${name}_sensitivity" step="0.001" value="${Number(cfg.sensitivity)}"></label>
@@ -614,14 +847,14 @@
                     <label>Offset <input type="number" id="lc_${name}_offset" step="0.01" value="${Number(cfg.offset ?? 0)}"></label>
                 </div>`;
             }
-            html += '</div><div class="modal-section"><h3>Pressure transducers</h3>';
+            html += '</div><div class="modal-section"><h3>Pressure transducers (5V)</h3>';
             for (const [name, cfg] of Object.entries(data.pressure_transducers)) {
                 const displayName = (cfg.display_name != null && cfg.display_name !== undefined) ? String(cfg.display_name) : '';
                 const unit = (cfg.unit != null && cfg.unit !== undefined) ? String(cfg.unit) : 'Pa';
                 const ptUnitOpts = PRESSURE_UNITS.map(u => `<option value="${u.value}" ${u.value === unit ? 'selected' : ''}>${u.label}</option>`).join('');
                 html += `<div class="settings-row">
                     <label>${name}</label>
-                    <label>Name <input type="text" class="display-name" id="pt_${name}_display_name" placeholder="e.g. Tank 1 Pressure" value="${displayName.replace(/"/g, '&quot;')}"></label>
+                    <label>Label <input type="text" class="display-name" id="pt_${name}_display_name" value="${displayName.replace(/"/g, '&quot;')}"></label>
                     <label>Unit <select class="unit-select" id="pt_${name}_unit">${ptUnitOpts}</select></label>
                     <label><input type="checkbox" id="pt_${name}_enabled" ${cfg.enabled ? 'checked' : ''}> Enabled</label>
                     <label>P min <input type="number" id="pt_${name}_P_min" value="${Number(cfg.P_min)}"></label>
@@ -636,7 +869,7 @@
                 const rtdUnitOpts = RTD_UNITS.map(u => `<option value="${u.value}" ${u.value === unit ? 'selected' : ''}>${u.label}</option>`).join('');
                 html += `<div class="settings-row">
                     <label>${name}</label>
-                    <label>Name <input type="text" class="display-name" id="rtd_${name}_display_name" placeholder="e.g. Fuel Line 1 Temp" value="${displayName.replace(/"/g, '&quot;')}"></label>
+                    <label>Label <input type="text" class="display-name" id="rtd_${name}_display_name" value="${displayName.replace(/"/g, '&quot;')}"></label>
                     <label>Unit <select class="unit-select" id="rtd_${name}_unit">${rtdUnitOpts}</select></label>
                     <label><input type="checkbox" id="rtd_${name}_enabled" ${cfg.enabled ? 'checked' : ''}> Enabled</label>
                     <label>Offset <input type="number" id="rtd_${name}_offset" step="0.01" value="${Number(cfg.offset ?? 0)}"></label>
@@ -688,24 +921,75 @@
                 sensorLabels.forEach((label) => {
                     const titleEl = document.getElementById(`title-${label}`);
                     if (titleEl && titleEl.firstChild) {
-                        titleEl.firstChild.textContent = sensorDisplayNames[label] ? `${label}: ${sensorDisplayNames[label]}` : label;
+                        titleEl.firstChild.textContent = sensorDisplayNames[label] ? sensorDisplayNames[label] : label;
                     }
                 });
             }
-            const slider = document.getElementById('adc_datarate_code');
-            const valueSpan = document.getElementById('adc_datarate_value');
-            if (slider && valueSpan) {
-                slider.addEventListener('input', () => { valueSpan.textContent = slider.value; });
-            }
             const sdCheck = document.getElementById('adc_settle_discard');
             const sdBtn = document.getElementById('adc_settle_discard_btn');
+            const slider = document.getElementById('adc_datarate_code');
+            const valueSpan = document.getElementById('adc_datarate_value');
+            const rateSummaryEl = document.getElementById('adc_rate_summary');
+
+            function countEnabledSensorsFromDom() {
+                let count = 0;
+                document.querySelectorAll('input[type="checkbox"]').forEach((el) => {
+                    if (!el.id) return;
+                    if (/^(lc|pt|rtd)_.+_enabled$/.test(el.id) && el.checked) {
+                        count += 1;
+                    }
+                });
+                return count;
+            }
+
+            function updateAdcRateSummary() {
+                if (!slider || !rateSummaryEl) return;
+                const code = Math.min(13, Math.max(0, parseInt(slider.value, 10) || 0));
+                const nominalHz = ADC_DATARATE_SPS[code];
+                const enabledCount = countEnabledSensorsFromDom();
+                const settleOn = sdCheck ? sdCheck.checked : sdInitial;
+                if (!nominalHz || enabledCount <= 0) {
+                    rateSummaryEl.textContent = `Approx. ADC rate: ${nominalHz || 'n/a'} Hz`;
+                    return;
+                }
+                // Effective per-channel rate: nominal Hz divided by number of enabled sensors;
+                // if settle_discard is enabled we effectively throw away every other conversion.
+                const discardFactor = settleOn ? 2 : 1;
+                const perChannel = nominalHz / discardFactor / enabledCount;
+                const perChannelStr = perChannel >= 1 ? perChannel.toFixed(1) : perChannel.toFixed(2);
+                const nominalStr = nominalHz >= 1 ? nominalHz.toFixed(1) : nominalHz.toFixed(2);
+                const modeText = settleOn ? ' (settle discard ON)' : '';
+                rateSummaryEl.textContent =
+                    `Approx. ADC rate: ${nominalStr} Hz, ≈ ${perChannelStr} Hz per enabled sensor (${enabledCount} total)` + modeText;
+            }
+
+            if (slider && valueSpan) {
+                valueSpan.textContent = dr;
+                updateAdcRateSummary();
+                slider.addEventListener('input', () => {
+                    valueSpan.textContent = slider.value;
+                    updateAdcRateSummary();
+                });
+            } else if (rateSummaryEl) {
+                updateAdcRateSummary();
+            }
+
             if (sdCheck && sdBtn) {
                 sdBtn.addEventListener('click', () => {
                     sdCheck.checked = !sdCheck.checked;
                     sdBtn.classList.toggle('enabled', sdCheck.checked);
                     sdBtn.classList.toggle('disabled', !sdCheck.checked);
+                    updateAdcRateSummary();
                 });
             }
+
+            // Recompute rate when any Enabled checkbox is toggled
+            settingsFormContainer.querySelectorAll('input[type="checkbox"]').forEach((el) => {
+                if (!el.id) return;
+                if (/^(lc|pt|rtd)_.+_enabled$/.test(el.id)) {
+                    el.addEventListener('change', updateAdcRateSummary);
+                }
+            });
         }
 
         // Collect form values into payload for POST /api/settings
@@ -758,10 +1042,78 @@
                 if (res.ok) {
                     const data = await res.json();
                     buildSettingsForm(data);
+                    const cfgNameEl = document.getElementById('config-file-name');
+                    if (cfgNameEl) {
+                        cfgNameEl.textContent = data.config_file_name || 'defaults';
+                    }
                 }
             } catch (e) {
                 console.error('Failed to fetch settings:', e);
             }
+        }
+
+        // Config file upload
+        const configUploadBtn = document.getElementById('config-upload-btn');
+        const configUploadInput = document.getElementById('config-upload-input');
+        const configDownloadBtn = document.getElementById('config-download-btn');
+
+        if (configUploadBtn && configUploadInput) {
+            configUploadBtn.addEventListener('click', () => configUploadInput.click());
+            configUploadInput.addEventListener('change', async () => {
+                const file = configUploadInput.files[0];
+                if (!file) return;
+                try {
+                    const text = await file.text();
+                    const parsed = JSON.parse(text);
+                    const res = await fetch('/api/upload-config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ settings: parsed, filename: file.name })
+                    });
+                    const result = await res.json().catch(() => ({}));
+                    if (res.ok) {
+                        const cfgNameEl = document.getElementById('config-file-name');
+                        if (cfgNameEl) cfgNameEl.textContent = result.filename || file.name;
+                        settingsSavedMsg.textContent = 'Config uploaded. Restarting...';
+                        settingsSavedMsg.classList.add('show');
+                        setTimeout(() => {
+                            settingsSavedMsg.classList.remove('show');
+                            settingsModal.classList.remove('open');
+                            settingsModal.setAttribute('aria-hidden', 'true');
+                        }, 2000);
+                    } else {
+                        alert(result.error || 'Failed to upload config');
+                    }
+                } catch (e) {
+                    console.error('Upload config error:', e);
+                    alert('Invalid JSON file or upload failed');
+                }
+                configUploadInput.value = '';
+            });
+        }
+
+        if (configDownloadBtn) {
+            configDownloadBtn.addEventListener('click', async () => {
+                try {
+                    const res = await fetch('/api/download-config');
+                    if (!res.ok) { alert('Failed to download config'); return; }
+                    const disposition = res.headers.get('Content-Disposition') || '';
+                    const match = disposition.match(/filename=(.+)/);
+                    const fname = match ? match[1] : 'DAQ_config.json';
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fname;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } catch (e) {
+                    console.error('Download config error:', e);
+                    alert('Failed to download config');
+                }
+            });
         }
 
         document.getElementById('settings-button').addEventListener('click', () => {
@@ -808,6 +1160,34 @@
                 alert('Failed to save settings');
             }
         });
+
+        if (settingsRebootBtn) {
+            settingsRebootBtn.addEventListener('click', async () => {
+                const sure = window.confirm('Are you sure you want to reboot the Raspberry Pi? This will interrupt data acquisition.');
+                if (!sure) return;
+                const confirmation = window.prompt('Type "reboot" to restart the Raspberry Pi');
+                if (confirmation === null || confirmation === '') {
+                    alert('Reboot cancelled.');
+                    return;
+                }
+                try {
+                    const res = await fetch('/api/reboot', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: confirmation })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (res.ok) {
+                        alert('Reboot command sent. The Raspberry Pi will restart shortly.');
+                    } else {
+                        alert(data.error || 'Failed to initiate reboot');
+                    }
+                } catch (e) {
+                    console.error('Reboot error:', e);
+                    alert('Failed to initiate reboot');
+                }
+            });
+        }
 
         // Load settings on page load so form is ready when user opens modal
         fetchAndPopulateSettings();
@@ -1080,7 +1460,7 @@
                 title.className = 'text-white text-sm font-semibold mb-1 flex justify-between items-center';
                 title.id = `title-${label}`;
                 const titleText = document.createElement('span');
-                titleText.textContent = sensorDisplayNames[label] ? `${label}: ${sensorDisplayNames[label]}` : label;
+                titleText.textContent = sensorDisplayNames[label] ? sensorDisplayNames[label] : label;
                 const valueDisplay = document.createElement('span');
                 valueDisplay.id = `value-${label}`;
                 valueDisplay.className = 'font-normal';
@@ -1172,22 +1552,25 @@
             resizeTimeout = setTimeout(resizeCanvases, 100);
         });
         
-        // Download button handler
-        downloadButton.addEventListener('click', async () => {
-            if (!currentFileName) return;
-            
+        // Download CSV: open dropdown and populate from API
+        const downloadDropdown = document.getElementById('download-dropdown');
+        const downloadDropdownList = document.getElementById('download-dropdown-list');
+        const downloadDropdownEmpty = document.getElementById('download-dropdown-empty');
+
+        async function downloadCsvFile(filename) {
             try {
-                const response = await fetch(`/data/${currentFileName}`);
+                const response = await fetch(`/data/${filename}`);
                 if (response.ok) {
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = currentFileName;
+                    a.download = filename;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
                     window.URL.revokeObjectURL(url);
+                    if (downloadDropdown) downloadDropdown.classList.remove('open');
                 } else {
                     alert('Failed to download file');
                 }
@@ -1195,30 +1578,70 @@
                 console.error('Download error:', error);
                 alert('Error downloading file');
             }
-        });
-        
-        // Fetch current file name periodically
-        async function updateCurrentFile() {
+        }
+
+        async function refreshDownloadDropdown() {
+            if (!downloadDropdownList || !downloadDropdownEmpty) return;
             try {
-                const response = await fetch('/api/current-file');
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.exists && data.filename) {
-                        currentFileName = data.filename;
-                        downloadButton.disabled = false;
-                    } else {
-                        currentFileName = null;
-                        downloadButton.disabled = true;
-                    }
+                const response = await fetch('/api/data-files');
+                if (!response.ok) return;
+                const data = await response.json();
+                const files = data.files || [];
+                const current = data.current || null;
+                downloadDropdownList.innerHTML = '';
+                if (files.length === 0) {
+                    downloadDropdownEmpty.style.display = 'block';
+                } else {
+                    downloadDropdownEmpty.style.display = 'none';
+                    files.forEach((filename) => {
+                        const item = document.createElement('div');
+                        item.className = 'download-dropdown-item';
+                        const nameSpan = document.createElement('span');
+                        nameSpan.className = 'filename';
+                        nameSpan.textContent = filename;
+                        const right = document.createElement('span');
+                        right.style.display = 'flex';
+                        right.style.alignItems = 'center';
+                        right.style.gap = '8px';
+                        if (filename === current) {
+                            const badge = document.createElement('span');
+                            badge.className = 'current-badge';
+                            badge.textContent = 'current';
+                            right.appendChild(badge);
+                        }
+                        const dlBtn = document.createElement('button');
+                        dlBtn.type = 'button';
+                        dlBtn.textContent = 'Download';
+                        dlBtn.addEventListener('click', () => downloadCsvFile(filename));
+                        right.appendChild(dlBtn);
+                        item.appendChild(nameSpan);
+                        item.appendChild(right);
+                        downloadDropdownList.appendChild(item);
+                    });
                 }
-            } catch (error) {
-                console.error('Error fetching current file:', error);
+            } catch (e) {
+                console.error('Error fetching data files:', e);
+                downloadDropdownEmpty.textContent = 'Failed to load list.';
+                downloadDropdownEmpty.style.display = 'block';
             }
         }
-        
-        // Update current file every 2 seconds
-        setInterval(updateCurrentFile, 2000);
-        updateCurrentFile();
+
+        downloadButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!downloadDropdown) return;
+            const isOpen = downloadDropdown.classList.toggle('open');
+            downloadDropdown.setAttribute('aria-hidden', !isOpen);
+            if (isOpen) refreshDownloadDropdown();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!downloadDropdown || !downloadDropdown.classList.contains('open')) return;
+            const wrap = document.querySelector('.download-dropdown-wrap');
+            if (wrap && !wrap.contains(e.target)) {
+                downloadDropdown.classList.remove('open');
+                downloadDropdown.setAttribute('aria-hidden', 'true');
+            }
+        });
     </script>
 </body>
 </html>
