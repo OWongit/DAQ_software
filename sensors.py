@@ -49,7 +49,7 @@ class Load_Cell:
         Calculate normalized force ratio.
         """
         # 1. Calculate differential voltage (e.g. 0.008 V)
-        v_diff = sig_plus - sig_minus
+        v_diff = abs(sig_plus - sig_minus)
 
         # 2. Avoid division by zero errors
         if self.excitation_voltage == 0 or self.sensitivity == 0:
@@ -109,16 +109,8 @@ class Pressure_Transducer:
             float: Calculated pressure
         """
 
-        # Clamp to valid sensor range
-        sig_voltage = max(self.V_min, min(sig_voltage, self.V_max))
-
-        if self.V_span == 0:
-            return 0.0
-
-        pressure_range = self.P_max - self.P_min
-
         # Linear mapping
-        pressure = (sig_voltage - self.V_min) * (pressure_range / self.V_span) + self.P_min
+        pressure = (sig_voltage - self.V_min) * ((self.P_max - self.P_min) / self.V_span) + self.P_min
 
         return pressure - self.offset
 
