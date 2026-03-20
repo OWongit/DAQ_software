@@ -155,6 +155,13 @@ def _validate_settings_payload(data):
         if "unit" in cfg:
             if not isinstance(cfg["unit"], str) or cfg["unit"] not in config.RTD_UNITS:
                 return None, f"rtds.{name}.unit must be one of: {sorted(config.RTD_UNITS)}"
+        if "r0" in cfg:
+            try:
+                v = float(cfg["r0"])
+                if v <= 0:
+                    return None, f"rtds.{name}.r0 must be positive"
+            except (TypeError, ValueError):
+                return None, f"rtds.{name}.r0 must be a number"
         if "offset" in cfg:
             try:
                 float(cfg["offset"])
@@ -269,6 +276,39 @@ def api_shutdown():
         return jsonify({"error": f"Failed to initiate shutdown: {exc}"}), 500
 
     return jsonify({"status": "shutting_down"})
+
+
+@app.route("/api/clear-csv", methods=["POST"])
+def api_clear_csv():
+    """Delete all CSV files in the data directory after user types 'delete' to confirm."""
+    try:
+        data = request.get_json(force=True)
+    except Exception:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    confirmation = data.get("password") if isinstance(data, dict) else None
+    if not isinstance(confirmation, str) or confirmation.strip().lower() != "delete":
+        return jsonify({"error": "Type 'delete' to confirm."}), 403
+
+    path = Path(_data_dir)
+    if not path.is_dir():
+        return jsonify({"deleted": 0})
+
+    current_name = None
+    if current_logger:
+        current_name = current_logger.get_filename()
+
+    count = 0
+    for f in path.glob("*.csv"):
+        if current_name and f.name == current_name:
+            continue
+        try:
+            f.unlink()
+            count += 1
+        except Exception:
+            pass
+
+    return jsonify({"deleted": count})
 
 
 @socketio.on("connect")

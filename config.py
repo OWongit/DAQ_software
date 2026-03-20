@@ -33,8 +33,8 @@ PRESSURE_TRANSDUCERS_HARDCODE = {
 
 # RTD hardcoded values only
 RTDS_HARDCODE = {
-    "RTD1": {"ADC": 1, "L1": 4, "L2": 2},
-    "RTD2": {"ADC": 2, "L1": 4, "L2": 2},
+    "RTD1": {"ADC": 1, "L1": 4, "L2": 2, "refp_ain": 7, "refn_ain": 6, "idac_current_ua": 250, "idac1_ain": 5, "idac2_ain": 3, "rref": 5600, "rbias": 1800},
+    "RTD2": {"ADC": 2, "L1": 4, "L2": 2, "refp_ain": 7, "refn_ain": 6, "idac_current_ua": 250, "idac1_ain": 5, "idac2_ain": 3, "rref": 5600, "rbias": 1800},
 }
 
 # Allowed unit values for settings validation (must match frontend unit options)
@@ -69,8 +69,8 @@ _DEFAULTS = {
         "PT6": {"display_name": "", "unit": "psi", "enabled": False, "P_min": 0, "P_max": 2000, "offset": 0},
     },
     "rtds": {
-        "RTD1": {"display_name": "", "unit": "\u00b0C", "enabled": False, "offset": 0},
-        "RTD2": {"display_name": "", "unit": "\u00b0C", "enabled": False, "offset": 0},
+        "RTD1": {"display_name": "", "unit": "\u00b0C", "enabled": False, "r0": 1000, "offset": 0},
+        "RTD2": {"display_name": "", "unit": "\u00b0C", "enabled": False, "r0": 1000, "offset": 0},
     },
 }
 

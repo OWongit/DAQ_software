@@ -27,7 +27,15 @@
             flex-direction: column;
             overflow: hidden;
             box-sizing: border-box;
-            padding-bottom: 25px; /* Space for bottom labels */
+            padding-bottom: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            box-shadow: 0 0 8px rgba(100, 180, 255, 0.08), 0 0 2px rgba(100, 180, 255, 0.05);
+            transition: box-shadow 0.3s ease;
+        }
+        .graph-container:hover {
+            box-shadow: 0 0 14px rgba(100, 180, 255, 0.20), 0 0 4px rgba(100, 180, 255, 0.10);
+            border-color: rgba(255, 255, 255, 0.14);
         }
         .graph-container canvas {
             display: block;
@@ -157,6 +165,24 @@
             padding: 16px 12px;
             color: #9ca3af;
             font-size: 12px;
+        }
+        .clear-csv-btn {
+            display: block;
+            width: calc(100% - 16px);
+            margin: 8px auto;
+            padding: 6px 0;
+            border: none;
+            border-radius: 5px;
+            background-color: #7f1d1d;
+            color: #fecaca;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .clear-csv-btn:hover {
+            background-color: #991b1b;
+            box-shadow: 0 0 10px rgba(248, 113, 113, 0.4);
         }
         .system-info {
             position: fixed;
@@ -481,8 +507,7 @@
             left: 0;
             right: 0;
             height: 50px;
-            background-color: rgba(20, 20, 20, 0.95);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: #000000;
             z-index: 999;
         }
         .bottom-bar {
@@ -491,8 +516,7 @@
             left: 0;
             right: 0;
             height: 40px;
-            background-color: rgba(20, 20, 20, 0.95);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: #000000;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -672,6 +696,7 @@
                 <div class="download-dropdown-title">CSV data files</div>
                 <div id="download-dropdown-list" class="download-dropdown-list"></div>
                 <div id="download-dropdown-empty" class="download-dropdown-empty" style="display: none;">No CSV files yet.</div>
+                <button type="button" id="clear-csv-btn" class="clear-csv-btn">Clear All CSV Files</button>
             </div>
         </div>
     </div>
@@ -796,11 +821,6 @@
             { value: 'bar', label: 'bar' },
             { value: 'mbar', label: 'mbar' }
         ];
-        const RTD_UNITS = [
-            { value: '°C', label: '°C' },
-            { value: '°F', label: '°F' },
-            { value: 'K', label: 'K' }
-        ];
         
         // Helper: unit and decimal places for sensor type (defaults; overridden by sensorUnits when user selects)
         function getSensorFormat(label) {
@@ -895,13 +915,11 @@
             html += '</div><div class="modal-section"><h3>RTDs</h3>';
             for (const [name, cfg] of Object.entries(data.rtds)) {
                 const displayName = (cfg.display_name != null && cfg.display_name !== undefined) ? String(cfg.display_name) : '';
-                const unit = (cfg.unit != null && cfg.unit !== undefined) ? String(cfg.unit) : '°C';
-                const rtdUnitOpts = RTD_UNITS.map(u => `<option value="${u.value}" ${u.value === unit ? 'selected' : ''}>${u.label}</option>`).join('');
                 html += `<div class="settings-row">
                     <label>${name}</label>
                     <label>Label <input type="text" class="display-name" id="rtd_${name}_display_name" value="${displayName.replace(/"/g, '&quot;')}"></label>
-                    <label>Unit <select class="unit-select" id="rtd_${name}_unit">${rtdUnitOpts}</select></label>
                     <label><input type="checkbox" id="rtd_${name}_enabled" ${cfg.enabled ? 'checked' : ''}> Enabled</label>
+                    <label>R₀ (Ω) <input type="number" id="rtd_${name}_r0" step="1" min="1" value="${Number(cfg.r0 ?? 1000)}"></label>
                     <label>Offset <input type="number" id="rtd_${name}_offset" step="0.01" value="${Number(cfg.offset ?? 0)}"></label>
                 </div>`;
             }
@@ -914,8 +932,8 @@
             for (const [name, cfg] of Object.entries(data.pressure_transducers || {})) {
                 sensorUnits[name] = (cfg.unit != null && cfg.unit !== undefined) ? String(cfg.unit) : 'Pa';
             }
-            for (const [name, cfg] of Object.entries(data.rtds || {})) {
-                sensorUnits[name] = (cfg.unit != null && cfg.unit !== undefined) ? String(cfg.unit) : '°C';
+            for (const name of Object.keys(data.rtds || {})) {
+                sensorUnits[name] = '°C';
             }
             // Update unit when user changes dropdown (no save needed for live display)
             settingsFormContainer.querySelectorAll('select.unit-select').forEach((el) => {
@@ -1054,13 +1072,12 @@
                 else { const v = parseFloat(el.value); pressure_transducers[name][key] = isNaN(v) ? 0 : v; }
             }
             for (const el of document.querySelectorAll('[id^="rtd_"]')) {
-                const m = el.id.match(/^rtd_(.+)_(enabled|display_name|unit|offset)$/);
+                const m = el.id.match(/^rtd_(.+)_(enabled|display_name|r0|offset)$/);
                 if (!m) continue;
                 const [, name, key] = m;
                 if (!rtds[name]) rtds[name] = {};
                 if (key === 'enabled') rtds[name].enabled = el.checked;
                 else if (key === 'display_name') rtds[name].display_name = (el.value && typeof el.value === 'string') ? el.value.trim() : '';
-                else if (key === 'unit') rtds[name].unit = (el.value && typeof el.value === 'string') ? el.value.trim() : '°C';
                 else { const v = parseFloat(el.value); rtds[name][key] = isNaN(v) ? 0 : v; }
             }
             return { adc, load_cells, pressure_transducers, rtds };
@@ -1683,6 +1700,31 @@
                 downloadDropdownEmpty.style.display = 'block';
             }
         }
+
+        document.getElementById('clear-csv-btn').addEventListener('click', async () => {
+            const confirmation = window.prompt('Type "delete" to clear all CSV files');
+            if (confirmation === null || confirmation === '') {
+                alert('Cancelled.');
+                return;
+            }
+            try {
+                const res = await fetch('/api/clear-csv', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: confirmation })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    alert(`Deleted ${data.deleted} CSV file(s).`);
+                    refreshDownloadDropdown();
+                } else {
+                    alert(data.error || 'Failed to clear CSV files');
+                }
+            } catch (e) {
+                console.error('Clear CSV error:', e);
+                alert('Failed to clear CSV files');
+            }
+        });
 
         downloadButton.addEventListener('click', (e) => {
             e.stopPropagation();

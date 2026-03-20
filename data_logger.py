@@ -14,31 +14,39 @@ class DataLogger:
     def get_daq_header(self):
         """
         Parses config.py and returns a list of column headers
-        for all enabled sensors.
+        for all enabled sensors, including computed values with units.
         """
         header = []
 
-        # 1. Load Cells
         for name, params in getattr(config, "LOAD_CELLS", {}).items():
             if params.get("enabled"):
-                header.extend([f"{name}_SIG+", f"{name}_SIG-"])
+                unit = params.get("unit", "N")
+                header.extend([f"{name}_SIG+", f"{name}_SIG-", f"{name}_Force({unit})"])
 
-        # 2. Pressure Transducers
         for name, params in getattr(config, "PRESSURE_TRANSDUCERS", {}).items():
             if params.get("enabled"):
-                header.append(f"{name}_SIG")
+                unit = params.get("unit", "psi")
+                header.extend([f"{name}_SIG", f"{name}_Pressure({unit})"])
 
-        # 3. RTDs
         for name, params in getattr(config, "RTDS", {}).items():
             if params.get("enabled"):
-                header.extend([f"{name}_L1", f"{name}_L2"])
+                header.extend([f"{name}_L1", f"{name}_L2", f"{name}_Temp(C)"])
 
         return header
 
     def __init__(self, base_dir="data"):
         self.base_dir = os.path.abspath(base_dir)
-        os.makedirs(self.base_dir, exist_ok=True)
+        self.file_handle = None
+        self.writer = None
+        self.filename = None
+        self.enabled = False
 
+        sensor_header = self.get_daq_header()
+        if not sensor_header:
+            print("DataLogger: No sensors enabled — CSV logging disabled")
+            return
+
+        os.makedirs(self.base_dir, exist_ok=True)
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.filename = os.path.join(self.base_dir, f"DATA-{timestamp}.csv")
 
@@ -46,8 +54,9 @@ class DataLogger:
 
         self.file_handle = open(self.filename, "w", newline="", encoding="utf-8")
         self.writer = csv.writer(self.file_handle)
+        self.enabled = True
 
-        self.HEADER = ["Timestamp"] + self.get_daq_header()
+        self.HEADER = ["Timestamp"] + sensor_header
 
         try:
             self.writer.writerow(self.HEADER)
@@ -56,6 +65,8 @@ class DataLogger:
             print(f"DataLogger: Error writing header: {e}")
 
     def log_row(self, row_data):
+        if not self.enabled:
+            return
         try:
             self.writer.writerow(row_data)
         except Exception as e:
@@ -70,4 +81,6 @@ class DataLogger:
             print(f"DataLogger: Error closing file: {e}")
 
     def get_filename(self):
+        if self.filename is None:
+            return None
         return os.path.basename(self.filename)

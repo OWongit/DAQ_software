@@ -181,28 +181,24 @@ class ADS124S08:
             allowed = ", ".join(str(u) for u in sorted(self._IDAC_CURRENT_MAP_UA.keys()))
             raise ValueError(f"IDAC current must be one of {allowed} µA (got {current_ua} µA)") from None
 
-    def _set_ref_for_rtd(self, use_ref1: bool = True, internal_always_on: bool = False) -> None:
+    def _set_ref_for_rtd(self) -> None:
         """
-        Select REF1 (AIN6/7) as the ADC reference and turn on the internal
-        2.5 V reference (required for IDAC operation).
+        Select the internal 2.5 V reference as the ADC reference and enable it.
+        IDACs require the internal reference to be on.
 
-        - use_ref1=True: REFSEL = REF1 (AIN6/7) used as VREF.
-        - internal_always_on: if True, keep internal ref on even in power-down.
+        The RTD resistance is computed via software ratiometric: two
+        differential reads (RTD voltage and Rref voltage) are taken against the
+        same internal reference, then their ratio is used.  This avoids needing
+        Rref on a hardware REFP/REFN pin.
         """
-        # Read current REF register and back it up once
         cur = self.rreg(self.REG_REF, 1)[0]
         if self._ref_reg_backup is None:
             self._ref_reg_backup = cur
 
-        # REFSEL bits [3:2]: 00=REF0, 01=REF1, 10=internal. :contentReference[oaicite:3]{index=3}
-        if use_ref1:
-            cur = (cur & ~0x0C) | 0x04  # select REF1 (AIN6/7)
-        else:
-            cur = (cur & ~0x0C) | 0x00  # select REF0 (default ext ref pins)
-
-        # REFCON bits [1:0]: 00=internal ref off, 01=on (off in power-down),
-        # 02=on always. IDACs require the internal ref to be on. :contentReference[oaicite:4]{index=4}
-        cur = (cur & ~0x03) | (0x02 if internal_always_on else 0x01)
+        # REFSEL bits [3:2] = 10 → internal 2.5 V reference
+        cur = (cur & ~0x0C) | 0x08
+        # REFCON bits [1:0] = 01 → internal reference on (required for IDACs)
+        cur = (cur & ~0x03) | 0x01
 
         self.wreg(self.REG_REF, [cur])
 
@@ -243,23 +239,15 @@ class ADS124S08:
         current_ua: int = 500,
         idac1_ain: int = 5,
         idac2_ain: int = 3,
-        use_ref1: bool = True,
-        internal_ref_always_on: bool = False,
     ) -> None:
         """
-        High-level helper to enable RTD excitation and reference using:
+        Enable RTD excitation: switch to internal 2.5 V reference (needed for
+        IDAC operation) and route IDAC currents to the specified pins.
 
-            - AIN6 / AIN7 as the reference (Rref ≈ 5.6 kΩ)
-            - IDAC1 routed to AIN5
-            - IDAC2 routed to AIN3
-
-        Call this when you want to use the RTD. By default the chip starts up
-        with IDACs off, so RTD is *not* in use until you call this.
+        The caller is responsible for reading both the RTD and Rref voltages
+        differentially and computing the ratio in software.
         """
-        # 1) Select REF1 (AIN6/7) and turn on internal ref for IDACs
-        self._set_ref_for_rtd(use_ref1=use_ref1, internal_always_on=internal_ref_always_on)
-
-        # 2) Route currents out of AIN5 and AIN3
+        self._set_ref_for_rtd()
         self.configure_idac_outputs(
             current_ua=current_ua,
             idac1_ain=idac1_ain,
@@ -290,6 +278,15 @@ class ADS124S08:
         val = ((ainp & 0x0F) << 4) | (self.AINCOM_CODE & 0x0F)
         self.wreg(self.REG_INPMUX, [val])
 
+    def set_inpmux_diff(self, ainp, ainn):
+        """AINp = ainp (0..11), AINn = ainn (0..11) — true differential."""
+        if not (0 <= ainp <= 11):
+            raise ValueError("ainp must be 0..11")
+        if not (0 <= ainn <= 11):
+            raise ValueError("ainn must be 0..11")
+        val = ((ainp & 0x0F) << 4) | (ainn & 0x0F)
+        self.wreg(self.REG_INPMUX, [val])
+
     @staticmethod
     def code_to_volts(code, vref=5, gain=1):
         """Convert 24-bit code to volts for bipolar transfer: ±Vref/gain."""
@@ -313,6 +310,20 @@ class ADS124S08:
         code = self.read_raw_sample()
         volts = self.code_to_volts(code, vref=vref, gain=gain)
         return volts
+
+    def read_raw_diff(self, ainp, ainn, settle_discard=True):
+        """
+        Differential read: set MUX to AINp vs AINn, wait for DRDY,
+        optionally discard first sample, then return raw 24-bit signed code.
+        """
+        self.set_inpmux_diff(ainp, ainn)
+        if not self.wait_drdy(0.5):
+            raise TimeoutError("DRDY timeout after MUX change")
+        self.read_raw_sample()
+        if settle_discard:
+            if not self.wait_drdy(0.5):
+                raise TimeoutError("DRDY timeout (settle discard)")
+        return self.read_raw_sample()
 
     def read_voltage_full(self, vref=5, gain=1):
         voltages = []
