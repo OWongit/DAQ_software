@@ -80,6 +80,7 @@
     }
   },
   "rtds": {
+    "_warning": "If the RTD function is enabled, ensure the sensor is connected prior to config file upload.",
     "RTD1": {
       "display_name": "",
       "unit": "\u00b0C",

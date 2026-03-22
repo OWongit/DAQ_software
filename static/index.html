@@ -323,6 +323,20 @@
             margin: 0 0 12px 0;
             letter-spacing: 0.03em;
         }
+        .modal-section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .modal-section-header h3 {
+            margin: 0;
+        }
+        .rtd-warning {
+            color: #fbbf24;
+            font-size: 10px;
+            font-weight: 600;
+        }
         .settings-row {
             display: flex;
             align-items: center;
@@ -912,7 +926,7 @@
                     <label>Offset <input type="number" id="pt_${name}_offset" step="0.01" value="${Number(cfg.offset ?? 0)}"></label>
                 </div>`;
             }
-            html += '</div><div class="modal-section"><h3>RTDs</h3>';
+            html += '</div><div class="modal-section"><div class="modal-section-header"><h3>RTDs</h3><span class="rtd-warning">WARNING: DO NOT ACTIVATE RTD READINGS UNLESS THE SENSOR IS PLUGGED IN.</span></div>';
             for (const [name, cfg] of Object.entries(data.rtds)) {
                 const displayName = (cfg.display_name != null && cfg.display_name !== undefined) ? String(cfg.display_name) : '';
                 html += `<div class="settings-row">
